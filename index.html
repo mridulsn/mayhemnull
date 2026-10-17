@@ -335,6 +335,10 @@ a.link:hover,button.link:hover{text-decoration:underline}
 .tl-wrap{position:relative;padding-top:14px}
 .tl-pins{position:absolute;left:0;right:0;top:0;height:14px}
 .tl-pins b{position:absolute;top:1px;width:10px;height:10px;margin-left:-5px;background:var(--warn);border:2px solid var(--surface);border-radius:2px;transform:rotate(45deg);cursor:default}
+.shift-pill{display:inline-flex;align-items:baseline;gap:4px;padding:4px 12px;border-radius:999px;background:var(--bg);font-size:14px;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.shift-pill .l{font-size:12px;font-weight:600;color:var(--muted)}
+.shift-pill b{color:var(--ink);font-size:15px}
+.shift-pill .over{color:var(--warn);font-weight:700}
 .day-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:16px}
 .day-stats>div{background:var(--bg);border-radius:10px;padding:10px 12px;min-width:0}
 .day-stats .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -2319,11 +2323,10 @@ function dayStatsHtml(day,k,now){
   var breaks=day?day.segments.filter(function(s){return s.state==='break';}).length:0;
   var share=t.logged>=1?Math.round(t.core/t.logged*100)+'%':'--';
   var cell=function(v,l){return '<div><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';};
-  var left=S.settings.shiftMin-t.logged,brkLeft=S.settings.breakMin-t['break'];
   return '<div class="day-stats">'+
-    cell(fmtM(t.logged),'Shift'+(day&&day.start?' from '+fmtClock(day.start):'')+', '+(left>=0?fmtM(left)+' left of '+fmtM(S.settings.shiftMin):'overtime +'+fmtM(-left)))+
-    cell(fmtM(t.core),'Focus'+(share!=='--'?', '+share+' of your time':''))+
-    cell(fmtM(t['break']),'Break ('+breaks+' taken), '+(brkLeft>=0?fmtM(brkLeft)+' left':'over by '+fmtM(-brkLeft)))+
+    cell(fmtM(t.core),'Focus')+
+    cell(fmtM(t['break']),'Break ('+breaks+' taken)')+
+    cell(share,'of your time on Focus')+
     cell(String(ss.length),'Sessions, avg '+(ss.length?fmtM(t.core/ss.length):'--'))+
     cell(ss.length?fmtM(longest):'--','Longest stretch')+
     cell(String(done.length),'Task'+(done.length===1?'':'s')+' done'+(done.length&&t.core>=1?', '+fmtM(t.core/done.length)+' focus each':''))+
@@ -2351,8 +2354,9 @@ function timelineHtml(day,now,k){
     dayStatsHtml(day,k,now);
 }
 function renderTimeline(){
-  var k=S.activeDay||todayKey();
-  $('#timelineCard').innerHTML='<div class="card-head"><h2>Your day</h2><span class="sub">Hover a block or a pin for details. Fix mistakes on the <button class="link" data-go="board">Day board</button>.</span></div>'+timelineHtml(viewDay(),null,k);
+  var k=S.activeDay||todayKey(),day=viewDay(),lg=totals(day).logged,sm=S.settings.shiftMin;
+  var shift=day&&day.segments.length?'<span class="shift-pill" title="Time on this shift, out of your shift length"><span class="l">Shift</span> <b>'+fmtM(lg)+'</b> / '+fmtM(sm)+(lg>sm?' <span class="over">+'+fmtM(lg-sm)+'</span>':'')+'</span>':'';
+  $('#timelineCard').innerHTML='<div class="card-head"><h2>Your day</h2>'+shift+'<span class="sub">Hover a block or a pin for details. Fix mistakes on the <button class="link" data-go="board">Day board</button>.</span></div>'+timelineHtml(day,null,k);
 }
 function streak(){
   var n=0,k=S.activeDay?shiftKey(S.activeDay,-1):shiftKey(todayKey(),S.days[todayKey()]&&S.days[todayKey()].ended?0:-1);
