@@ -834,7 +834,6 @@ kbd{font-family:"Figtree",system-ui,sans-serif}
       <div class="tiles" id="tiles"></div>
       <div class="status-row" id="statusRow"><div id="reasonChips"></div><div id="nudge"></div></div>
       <div class="card" id="todoCard"></div>
-      <div class="today-sum" id="kpis"></div>
       <div class="card" id="sessionsCard"></div>
       <div class="card" id="timelineCard"></div>
     </div></section>
@@ -1749,6 +1748,7 @@ function recentNotes(max){
 function startShift(now){
   var k=dayKey(now),d=getDay(k);
   if(!d.start)d.start=now;
+  d.runFrom=now;
   if(d.ended){audit('Shift resumed at '+fmtClock(now),k);d.ended=null;}
   S.activeDay=k;
   hbWrite(now);
@@ -1934,6 +1934,29 @@ function todoMinutes(){
 }
 function todosDoneOn(k){return S.todos.filter(function(t){return t.done&&dayKey(t.done)===k;}).sort(function(a,b){return a.done-b.done;});}
 
+/* The newest ended shift that can still be resumed: today's, or one that ended less than 6 hours ago (past midnight) */
+function lastEnded(){
+  var t=S.days[todayKey()];if(t&&t.ended)return todayKey();
+  var ks=Object.keys(S.days).sort(),k=ks[ks.length-1],d=k&&S.days[k];
+  return d&&d.ended&&Date.now()-d.ended<6*3600000?k:null;
+}
+/* start Focus after preparing the shift; asks for a note only when that setting is on */
+function beginShift(prep,why){
+  var go=function(){prep();setState('core',why);};
+  if(S.settings.askNote===false){go();return;}
+  askNote({},function(n){go();var seg=curSeg();if(seg&&seg.state==='core'&&n){seg.reason=n;afterChange();}});
+}
+function resumeShift(k){
+  beginShift(function(){var d=S.days[k],now=Date.now();d.ended=null;d.runFrom=now;S.activeDay=k;hbWrite(now);audit('Shift resumed at '+fmtClock(now),k);},'Shift resumed at '+fmtClock(Date.now())+'. Focus is running.');
+}
+function newShift(){
+  beginShift(function(){
+    var now=Date.now(),k=dayKey(now),d=getDay(k);
+    if(d.segments.length){d.shiftStart=now;audit('New shift started at '+fmtClock(now),k);}   // the counters on Today start again from 00:00:00
+    if(!d.start)d.start=now;
+    d.ended=null;d.runFrom=now;S.activeDay=k;hbWrite(now);
+  },'New shift started at '+fmtClock(Date.now())+'. Focus is running.');
+}
 function endShift(){
   var now=Date.now(),day=curDay();if(!day)return;
   var o=openSeg(day);if(o)o.end=now;
@@ -1997,7 +2020,7 @@ function enforceMidnight(){
 function enforce24h(){
   if(!S.activeDay||loadError)return false;
   var d=curDay();if(!d||!d.start)return false;
-  var cut=d.start+MAX_SHIFT;if(Date.now()<cut)return false;
+  var cut=(d.runFrom||d.start)+MAX_SHIFT;if(Date.now()<cut)return false;   // 24 h from the latest start or resume
   var o=openSeg(d);if(o)o.end=Math.max(o.start,cut);
   var k=S.activeDay;d.ended=cut;S.activeDay=null;
   audit('Shift ended automatically 24 hours after it started ('+fmtDate(k)+' '+fmtClock(d.start)+')',k);
@@ -2101,7 +2124,7 @@ function renderTop(){
   else pill.innerHTML='<span class="dot"></span><span>Off shift</span>';
   var b=$('#shiftBtn');
   if(S.activeDay){b.innerHTML=ICON.end+'<span class="t">End shift</span>';b.title='End your shift and see the day summary';b.classList.remove('go');}
-  else{var ended=S.days[todayKey()]&&S.days[todayKey()].ended;b.innerHTML=ICON.play+'<span class="t">'+(ended?'Resume shift':'Start shift')+'</span>';b.title=ended?'Resume the shift (Focus)':'Start the shift (Focus)';b.classList.add('go');}
+  else{var ended=!!lastEnded();b.innerHTML=ICON.play+'<span class="t">'+(ended?'Resume shift':'Start shift')+'</span>';b.title=ended?'Resume the shift (Focus)':'Start the shift (Focus)';b.classList.add('go');}
   var av=$('#avatar');
   if(CLOUD.user){
     var cu=CLOUD.user;av.className='avatar';av.title=(cu.name||'Your account')+' - your account';
@@ -2143,8 +2166,8 @@ function renderTodayBanners(){
   if(loadError) list.unshift({kind:'bad',html:'<b>Your saved data could not be read</b>, so nothing is being saved and nothing has been overwritten. Download the raw copy first, then decide.',actLabel:'Download raw copy',act:function(){download('mayhemnull-unreadable-'+todayKey()+'.txt',corruptRaw,'text/plain');},act2Label:'Start fresh anyway',act2:function(){confirmBox('Start fresh?','This replaces the unreadable data with an empty tracker. Download the raw copy first if you have not.','Start fresh',function(){loadError=null;corruptRaw=null;save();renderAll();});}});
   if(!storageOk) list.unshift({kind:'bad',html:'This browser is blocking storage, so nothing you log will be kept after you close the page.'});
   if(!S.activeDay&&!loadError){
-    var d=S.days[todayKey()];
-    list.push({kind:(d&&d.ended)?'ended':'start'});
+    var le=lastEnded();
+    list.push(le?{kind:'ended',day:le}:{kind:'start'});
   }
   list.forEach(function(b,i){
     if(b.kind==='start'){
@@ -2152,16 +2175,17 @@ function renderTodayBanners(){
       var sc=document.createElement('div');sc.className='start-card';
       sc.innerHTML='<div class="txt"><div class="t1">'+esc(mv[0])+'</div><div class="t2">'+esc(mv[1])+'</div><div class="t3">Nothing is timed until you press Start shift. '+(S.settings.askNote===false?'Focus then starts at once from 00:00:00. Add your tasks below and press Focus on one to work on it.':'MayhemNull asks what you are working on, then Focus starts from 00:00:00.')+'</div></div>'+
         '<button class="btn primary start">'+ICON.play+'<span>Start shift</span></button>';
-      sc.querySelector('button').onclick=function(){pickState('core','Shift started at '+fmtClock(Date.now())+'. Focus is running.');};
+      sc.querySelector('button').onclick=newShift;
       box.appendChild(sc);return;
     }
     if(b.kind==='ended'){
-      var ed=S.days[todayKey()],et=totals(ed);
+      var ed=S.days[b.day],et=totals(shiftView(ed)),es=sessions(shiftView(ed)).length;
       var ec=document.createElement('div');ec.className='start-card';
-      ec.innerHTML='<div class="txt"><div class="t1">Your shift has ended</div><div class="t2">Ended at <b>'+fmtClock(ed.ended)+'</b>. Focus '+fmtM(et.core)+' in '+sessions(ed).length+' session'+(sessions(ed).length===1?'':'s')+'.</div><div class="t3">Need to carry on today? Resume the shift and Focus starts again from now.</div></div>'+
-        '<div class="acts"><button class="btn primary start" id="resumeBtn">'+ICON.play+'<span>Resume shift</span></button><button class="btn" id="endSumBtn">View summary</button></div>';
-      $('#resumeBtn',ec).onclick=function(){pickState('core','Shift resumed at '+fmtClock(Date.now())+'. Focus is running.');};
-      $('#endSumBtn',ec).onclick=function(){showSummary(todayKey());};
+      ec.innerHTML='<div class="txt"><div class="t1">Your shift has ended</div><div class="t2">Ended at <b>'+fmtClock(ed.ended)+'</b>. Focus '+fmtM(et.core)+' in '+es+' session'+(es===1?'':'s')+'.</div><div class="t3">Resume carries on the same shift. Start new shift begins a fresh one from 00:00:00.</div></div>'+
+        '<div class="acts"><button class="btn primary start" id="resumeBtn">'+ICON.play+'<span>Resume shift</span></button><button class="btn" id="newShiftBtn">'+ICON.play+'<span>Start new shift</span></button><button class="btn" id="endSumBtn">View summary</button></div>';
+      $('#resumeBtn',ec).onclick=function(){resumeShift(b.day);};
+      $('#newShiftBtn',ec).onclick=newShift;
+      $('#endSumBtn',ec).onclick=function(){showSummary(b.day);};
       box.appendChild(ec);return;
     }
     var el=document.createElement('div');el.className='banner '+(b.kind==='warn'?'':b.kind);
@@ -2183,7 +2207,13 @@ function buildTiles(){
       (s==='core'?'<span class="pulse-line" aria-hidden="true"></span>':'')+'</button>';
   }).join('');
 }
-function viewDay(){return curDay()||S.days[todayKey()]||null;}
+function viewDay(){return shiftView(curDay()||S.days[todayKey()]||null);}
+/* After "Start new shift" the Today page counts only the newest shift. History and Insights keep the whole day. */
+function shiftView(d){
+  if(!d||!d.shiftStart)return d;
+  var t0=d.shiftStart;
+  return {start:t0,ended:d.ended,shiftStart:t0,segments:d.segments.filter(function(s){return s.start>=t0;}),adjust:d.adjust.filter(function(a){return (a.ts||0)>=t0;}),entries:[]};
+}
 function updateTiles(){
   var now=Date.now(),t=totals(viewDay(),now),st=curState(),o=curSeg();
   $$('#tiles .tile').forEach(function(el){
@@ -2217,6 +2247,7 @@ function renderNudge(){
   syncStatusRow();
 }
 function renderKpis(){
+  if(!$('#kpis'))return;   // 18 Oct: the strip was removed from Today; Your day carries these numbers
   var day=viewDay(),t=totals(day),ss=sessions(day),S2=S.settings;
   var left=S2.shiftMin-t.logged,brkLeft=S2.breakMin-t['break'];
   var longest=ss.reduce(function(m,x){return Math.max(m,x.min);},0),tn=topNote(day);
@@ -2238,10 +2269,11 @@ function renderKpis(){
   '</div>';
 }
 /* a day's Focus sessions as a table; clicking a note edits it */
-function sessionsHtml(k,now){
-  var d=S.days[k],ss=sessions(d,now).slice().reverse();
+function sessionsHtml(k,now,from){
+  var d=S.days[k],ss=sessions(d,now).filter(function(x){return !from||x.s.start>=from;}).slice().reverse();
   if(!ss.length)return '<div class="empty">No Focus sessions yet. Press <b>Focus</b> and say what you are working on.</div>';
-  var by=noteTimes(d,{},now),names=Object.keys(by).sort(function(a,b){return by[b].min-by[a].min;});
+  var by={};ss.forEach(function(x){var n=x.note||'No note';var o=by[n]||(by[n]={min:0,n:0});o.min+=x.min;o.n++;});
+  var names=Object.keys(by).sort(function(a,b){return by[b].min-by[a].min;});
   return '<div class="tbl-wrap"><table class="tbl sess"><tr><th>Time</th><th>What you worked on</th><th class="r">Length</th></tr>'+
     ss.map(function(x){var s=x.s;return '<tr><td class="num">'+fmtClock(s.start)+' - '+(s.end==null?'now':fmtClock(s.end))+'</td>'+
       '<td><button class="note-btn'+(x.note?'':' none')+'" data-edit-note="'+esc(k)+'|'+x.i+'" title="Change this note">'+(x.note?esc(x.note):'No note - add one')+'</button>'+(s.end==null?' <span class="tag live-tag-sm">now</span>':'')+'</td>'+
@@ -2250,8 +2282,9 @@ function sessionsHtml(k,now){
 }
 function renderSessions(){
   var k=S.activeDay||todayKey(),card=$('#sessionsCard');
+  var from=S.days[k]&&S.days[k].shiftStart||0;
   card.hidden=!S.activeDay&&!sessions(S.days[k]).length;   // nothing to show before the first session of the day
-  card.innerHTML='<div class="card-head"><h2>Today\'s sessions</h2><span class="sub">Tap a note to change it.</span></div>'+sessionsHtml(k);
+  card.innerHTML='<div class="card-head"><h2>'+(from?'This shift\'s sessions':'Today\'s sessions')+'</h2><span class="sub">Tap a note to change it.</span></div>'+sessionsHtml(k,null,from);
 }
 function renderTodos(){
   var card=$('#todoCard');if(!card)return;
@@ -2286,10 +2319,11 @@ function dayStatsHtml(day,k,now){
   var breaks=day?day.segments.filter(function(s){return s.state==='break';}).length:0;
   var share=t.logged>=1?Math.round(t.core/t.logged*100)+'%':'--';
   var cell=function(v,l){return '<div><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';};
+  var left=S.settings.shiftMin-t.logged,brkLeft=S.settings.breakMin-t['break'];
   return '<div class="day-stats">'+
-    cell(fmtM(t.core),'Focus')+
-    cell(fmtM(t['break']),'Break ('+breaks+' taken)')+
-    cell(share,'of your time on Focus')+
+    cell(fmtM(t.logged),'Shift'+(day&&day.start?' from '+fmtClock(day.start):'')+', '+(left>=0?fmtM(left)+' left of '+fmtM(S.settings.shiftMin):'overtime +'+fmtM(-left)))+
+    cell(fmtM(t.core),'Focus'+(share!=='--'?', '+share+' of your time':''))+
+    cell(fmtM(t['break']),'Break ('+breaks+' taken), '+(brkLeft>=0?fmtM(brkLeft)+' left':'over by '+fmtM(-brkLeft)))+
     cell(String(ss.length),'Sessions, avg '+(ss.length?fmtM(t.core/ss.length):'--'))+
     cell(ss.length?fmtM(longest):'--','Longest stretch')+
     cell(String(done.length),'Task'+(done.length===1?'':'s')+' done'+(done.length&&t.core>=1?', '+fmtM(t.core/done.length)+' focus each':''))+
@@ -3315,8 +3349,8 @@ $('#hamburger').onclick=function(){document.body.classList.toggle('nav-open');};
 $('#navScrim').onclick=function(){document.body.classList.remove('nav-open');};
 $('#nextQuote').onclick=function(){UI.quoteOff=(UI.quoteOff+1)%QUOTES.length;saveUI();renderToday();};
 $('#shiftBtn').onclick=function(){
-  if(S.activeDay) confirmBox('End your shift?','All timers stop and you will see your day summary. You can carry on later today with Resume shift on the Today page.','End shift',endShift);
-  else pickState('core','Shift started at '+fmtClock(Date.now())+'. Focus is running.');
+  if(S.activeDay){confirmBox('End your shift?','All timers stop and you will see your day summary. You can carry on any time with Resume shift, or start a new shift, on the Today page.','End shift',endShift);return;}
+  var le=lastEnded();if(le)resumeShift(le);else newShift();
 };
 window.addEventListener('hashchange',function(){
   if((location.hash||'').indexOf('#fp-auth')===0){takeHandoff();if(CLOUD.cfg)useHandoff();return;}
