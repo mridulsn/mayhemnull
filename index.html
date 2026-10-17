@@ -346,7 +346,10 @@ a.link:hover,button.link:hover{text-decoration:underline}
 .todo-add{display:flex;gap:8px;margin-bottom:12px}
 .todo-add .inp{flex:1}
 .todo-list{list-style:none;margin:0;padding:0}
-.todo{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid var(--line)}
+.todo{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid var(--line);position:relative;transition:transform .12s}
+.todo.dragging{transition:none}
+@media (max-width:480px){.todo .live-tag-sm{display:none}}
+.todo .grip{width:28px;height:32px;margin:0 -6px 0 -6px;flex:none}
 .todo:first-child{border-top:0}
 .todo input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:var(--core);cursor:pointer}
 .todo .tx{flex:1;min-width:0;overflow-wrap:anywhere}
@@ -830,8 +833,8 @@ kbd{font-family:"Figtree",system-ui,sans-serif}
       <div id="pomoPanel" class="pomo-panel" hidden></div>
       <div class="tiles" id="tiles"></div>
       <div class="status-row" id="statusRow"><div id="reasonChips"></div><div id="nudge"></div></div>
-      <div class="today-sum" id="kpis"></div>
       <div class="card" id="todoCard"></div>
+      <div class="today-sum" id="kpis"></div>
       <div class="card" id="sessionsCard"></div>
       <div class="card" id="timelineCard"></div>
     </div></section>
@@ -1866,6 +1869,7 @@ function addTodo(text){
 }
 function tickTodo(id,on){
   var t=todoById(id);if(!t)return;
+  if(on){var o=curSeg();if(o&&o.state==='core'&&o.task===id)unfocusTask(true,true);}   // finished: later Focus time no longer counts for it
   t.done=on?Date.now():null;afterChange();
   if(on)toast('Done: '+t.text,function(){var x=todoById(id);if(x){x.done=null;afterChange();}});
 }
@@ -1885,6 +1889,43 @@ function focusTask(id){
   var s=curSeg();
   if(s&&s.state==='core'){s.reason=t.text;s.task=id;afterChange();}
 }
+/* Unfocus: Focus keeps running, but from now on it is not for this task */
+function unfocusTask(quiet,keep){
+  var o=curSeg();if(!o||o.state!=='core'||!o.task)return;
+  var now=Date.now();
+  if(!keep&&now-o.start<60000){o.reason=null;o.task=null;}   // pressed Unfocus within a minute: just drop the link
+  else{o.end=now;curDay().segments.push({state:'core',reason:null,start:now,end:null});}
+  afterChange();
+  if(quiet!==true)toast('Focus is still running, not on a task now. Press Break to stop.');
+}
+/* move a To do task to a new place among the open tasks */
+function moveTodo(id,to){
+  var open=S.todos.filter(function(t){return !t.done;}),t=todoById(id),from=open.indexOf(t);
+  if(from<0||to===from)return;
+  open.splice(from,1);open.splice(clamp(to,0,open.length),0,t);
+  S.todos=open.concat(S.todos.filter(function(x){return x.done;}));
+  afterChange();
+}
+/* drag a task by its grip (mouse and touch) */
+document.addEventListener('pointerdown',function(e){
+  var g=e.target.closest&&e.target.closest('[data-todo-grip]');if(!g||e.button>0)return;
+  e.preventDefault();
+  var li=g.closest('.todo'),rows=[].slice.call(li.parentNode.children),from=rows.indexOf(li),to=from,y0=e.clientY,h=li.offsetHeight||44;
+  li.classList.add('dragging');document.body.classList.add('sorting');
+  try{g.setPointerCapture(e.pointerId);}catch(x){}
+  var move=function(ev){
+    var dy=clamp(ev.clientY-y0,-from*h-h/2,(rows.length-1-from)*h+h/2);
+    li.style.transform='translateY('+dy+'px)';
+    to=clamp(from+Math.round(dy/h),0,rows.length-1);
+    rows.forEach(function(r,i){if(r===li)return;var sh=(from<to&&i>from&&i<=to)?-h:(from>to&&i<from&&i>=to)?h:0;r.style.transform=sh?'translateY('+sh+'px)':'';});
+  };
+  var up=function(){
+    g.removeEventListener('pointermove',move);g.removeEventListener('pointerup',up);g.removeEventListener('pointercancel',up);
+    rows.forEach(function(r){r.style.transform='';});li.classList.remove('dragging');document.body.classList.remove('sorting');
+    if(to!==from)moveTodo(li.getAttribute('data-id'),to);
+  };
+  g.addEventListener('pointermove',move);g.addEventListener('pointerup',up);g.addEventListener('pointercancel',up);
+});
 /* minutes of Focus spent on each task, from the sessions linked to it */
 function todoMinutes(){
   var m={},now=Date.now();
@@ -2221,11 +2262,13 @@ function renderTodos(){
   var earlier=S.todos.filter(function(t){return t.done&&dayKey(t.done)!==k;}).sort(function(a,b){return b.done-a.done;});
   var row=function(t){
     var m=mins[t.id];
-    return '<li class="todo'+(t.done?' done':'')+(t.id===cur?' now':'')+'"><input type="checkbox" data-todo-tick="'+t.id+'"'+(t.done?' checked':'')+' title="'+(t.done?'Move back to To do':'Mark as done')+'">'+
+    return '<li class="todo'+(t.done?' done':'')+(t.id===cur?' now':'')+'" data-id="'+t.id+'">'+
+      (t.done?'':'<span class="grip" data-todo-grip title="Drag to reorder" aria-label="Drag to reorder">'+ICON.grip+'</span>')+
+      '<input type="checkbox" data-todo-tick="'+t.id+'"'+(t.done?' checked':'')+' title="'+(t.done?'Move back to To do':'Mark as done')+'">'+
       '<span class="tx">'+esc(t.text)+'</span>'+
       (m>=0.5?'<span class="tm">'+fmtM(m)+'</span>':'')+
       (t.done?'<span class="tm">'+(dayKey(t.done)===k?fmtClock(t.done):fmtDate(dayKey(t.done),{day:'numeric',month:'short'}))+'</span>':
-        (t.id===cur?'<span class="tag live-tag-sm">focusing</span>':'<button class="btn sm" data-todo-focus="'+t.id+'" title="Start Focus on this task">'+ICON.play+'Focus</button>'))+
+        (t.id===cur?'<span class="tag live-tag-sm">focusing</span><button class="btn sm" data-todo-unfocus title="Stop working on this task. Focus keeps running.">Unfocus</button>':'<button class="btn sm" data-todo-focus="'+t.id+'" title="Start Focus on this task">'+ICON.play+'Focus</button>'))+
       '<button class="x" data-todo-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button></li>';
   };
   card.innerHTML='<div class="card-head"><h2>Tasks</h2><span class="sub">'+open.length+' to do &middot; '+doneToday.length+' done today</span></div>'+
@@ -2757,6 +2800,7 @@ document.addEventListener('click',function(e){
   if(e.target.closest('[data-note-change]')){if(curState()==='core')pickState('core');return;}
   var td=e.target.closest('[data-todo-tick]');if(td){tickTodo(td.getAttribute('data-todo-tick'),td.checked);return;}
   td=e.target.closest('[data-todo-focus]');if(td){focusTask(td.getAttribute('data-todo-focus'));return;}
+  if(e.target.closest('[data-todo-unfocus]')){unfocusTask();return;}
   td=e.target.closest('[data-todo-del]');if(td){delTodo(td.getAttribute('data-todo-del'));return;}
   if(e.target.closest('[data-todo-old]')){UI.todoOld=!UI.todoOld;saveUI();renderTodos();return;}
   var en=e.target.closest('[data-edit-note]');
