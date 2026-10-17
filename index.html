@@ -330,6 +330,33 @@ a.link:hover,button.link:hover{text-decoration:underline}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--ink2);margin-top:10px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.legend i.pin{width:9px;height:9px;border-radius:2px;transform:rotate(45deg);background:var(--warn)}
+/* task-done pins sit above the bar (the bar itself clips) */
+.tl-wrap{position:relative;padding-top:14px}
+.tl-pins{position:absolute;left:0;right:0;top:0;height:14px}
+.tl-pins b{position:absolute;top:1px;width:10px;height:10px;margin-left:-5px;background:var(--warn);border:2px solid var(--surface);border-radius:2px;transform:rotate(45deg);cursor:default}
+.day-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:16px}
+.day-stats>div{background:var(--bg);border-radius:10px;padding:10px 12px;min-width:0}
+.day-stats .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.day-stats .l{font-size:12px;color:var(--muted);line-height:1.3}
+@media (max-width:900px){.day-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:420px){.day-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---------- tasks ---------- */
+.todo-add{display:flex;gap:8px;margin-bottom:12px}
+.todo-add .inp{flex:1}
+.todo-list{list-style:none;margin:0;padding:0}
+.todo{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid var(--line)}
+.todo:first-child{border-top:0}
+.todo input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:var(--core);cursor:pointer}
+.todo .tx{flex:1;min-width:0;overflow-wrap:anywhere}
+.todo .tm{font-size:12px;color:var(--muted);white-space:nowrap}
+.todo.now .tx{font-weight:700;color:var(--core)}
+.todo.done .tx{text-decoration:line-through;color:var(--muted)}
+.todo .x{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px;border-radius:6px;cursor:pointer}
+.todo .x:hover{color:var(--bad);background:var(--bg)}
+.todo-sub{display:flex;align-items:center;gap:10px;margin:14px 0 4px;font-size:13px;font-weight:600;color:var(--ink2)}
+.todo-sub .link{font-weight:500}
 
 /* ---------- forms / tables ---------- */
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
@@ -804,6 +831,7 @@ kbd{font-family:"Figtree",system-ui,sans-serif}
       <div class="tiles" id="tiles"></div>
       <div class="status-row" id="statusRow"><div id="reasonChips"></div><div id="nudge"></div></div>
       <div class="today-sum" id="kpis"></div>
+      <div class="card" id="todoCard"></div>
       <div class="card" id="sessionsCard"></div>
       <div class="card" id="timelineCard"></div>
     </div></section>
@@ -978,9 +1006,10 @@ function statusHtml(kind,text){var ic=kind==='good'?ICON.check:kind==='info'?ICO
 function defaults(){
   return {
     version:1,
-    settings:{name:'',shiftMin:540,breakMin:60,target:100,focusMin:90,breakAlertMin:30,autoCore:false,gapMin:20,idleDetect:false,idleMin:10,autoFolder:false,gapAsk:false,pomoMin:1,askNote:true},
+    settings:{name:'',shiftMin:540,breakMin:60,target:100,focusMin:90,breakAlertMin:30,autoCore:false,gapMin:20,idleDetect:false,idleMin:10,autoFolder:false,gapAsk:false,pomoMin:1,askNote:false},
     reasons:{diverted:['Meeting','Training','Emails / reading','Meal','Coaching / 1-2-1','Other'],downtime:['System issue','Fire drill','Power / internet','Waiting on others','Other']},
-    tasks:[],   // tasks were removed from MayhemNull; kept empty so older backups still load
+    tasks:[],   // the old counted-units tasks; kept empty so older backups still load
+    todos:[],   // the to-do list on Today: {id,text,created,done}
     days:{}, activeDay:null, audit:[],
     pomo:pomoDefaults()
   };
@@ -992,11 +1021,13 @@ function migrate(d){
   d.settings=Object.assign(b.settings,d.settings||{});
   d.reasons=Object.assign(b.reasons,d.reasons||{});
   d.audit=Array.isArray(d.audit)?d.audit:[];
+  d.todos=Array.isArray(d.todos)?d.todos:[];
   d.pomo=d.pomo&&typeof d.pomo==='object'?d.pomo:pomoDefaults();d.pomo.cfg=Object.assign(pomoDefaults().cfg,d.pomo.cfg||{});d.pomo.log=d.pomo.log||{};d.pomo.next=d.pomo.next||'focus';
   Object.keys(d.days).forEach(function(k){var x=d.days[k];x.segments=x.segments||[];x.entries=x.entries||[];x.adjust=x.adjust||[];});
   if(d.activeDay&&!d.days[d.activeDay]) d.activeDay=null;
   if(!d.settings.manualStart){d.settings.autoCore=false;d.settings.manualStart=1;}  /* 2026-09-25: shift starts only on Start */
   if(!d.settings.pomoMin){d.pomo.cfg.show=false;d.settings.pomoMin=1;}  /* 2026-10-13: the Pomodoro starts minimised, once for everyone */
+  if(!d.settings.noteOff){d.settings.askNote=false;d.settings.noteOff=1;}  /* 2026-10-18: Focus starts at once by default; the note box is a setting */
   return d;
 }
 function loadLocal(){
@@ -1810,7 +1841,7 @@ function changeNote(note,fixOnly){
   var o=curSeg();if(!o||o.state!=='core')return;
   var now=Date.now();
   if(fixOnly||now-o.start<60000||(o.reason||'')===note){   // a minute in, or the same note: just set it
-    if((o.reason||'')!==note){audit('Note of the '+fmtClock(o.start)+' session set to "'+(note||'no note')+'"',S.activeDay);o.reason=note||null;afterChange();}
+    if((o.reason||'')!==note){audit('Note of the '+fmtClock(o.start)+' session set to "'+(note||'no note')+'"',S.activeDay);o.reason=note||null;o.task=null;afterChange();}
     return;
   }
   o.end=now;curDay().segments.push({state:'core',reason:note||null,start:now,end:null});
@@ -1826,6 +1857,42 @@ function editSessionNote(k,idx){
     b.reason=v||null;audit('Note of the '+fmtClock(b.start)+' session set to "'+(v||'no note')+'"',k);afterChange();
   });
 }
+/* ---- tasks: a to-do list on Today. Ticking one moves it to Completed. ---- */
+function todoById(id){for(var i=0;i<S.todos.length;i++)if(S.todos[i].id===id)return S.todos[i];return null;}
+function addTodo(text){
+  text=String(text||'').trim().slice(0,120);if(!text)return null;
+  var t={id:uid(),text:text,created:Date.now(),done:null};
+  S.todos.push(t);afterChange();return t;
+}
+function tickTodo(id,on){
+  var t=todoById(id);if(!t)return;
+  t.done=on?Date.now():null;afterChange();
+  if(on)toast('Done: '+t.text,function(){var x=todoById(id);if(x){x.done=null;afterChange();}});
+}
+function delTodo(id){
+  var i=S.todos.indexOf(todoById(id));if(i<0)return;
+  var t=S.todos.splice(i,1)[0];afterChange();
+  toast('Task removed: '+t.text,function(){S.todos.splice(Math.min(i,S.todos.length),0,t);afterChange();});
+}
+/* Focus on a task: Focus starts (or switches) with the task as its note */
+function focusTask(id){
+  var t=todoById(id);if(!t)return;
+  var o=curSeg();
+  if(o&&o.state==='core'){
+    if(o.task===id)return;
+    changeNote(t.text);
+  }else setState('core',S.activeDay?null:'Shift started at '+fmtClock(Date.now())+'. Focus is running.');
+  var s=curSeg();
+  if(s&&s.state==='core'){s.reason=t.text;s.task=id;afterChange();}
+}
+/* minutes of Focus spent on each task, from the sessions linked to it */
+function todoMinutes(){
+  var m={},now=Date.now();
+  Object.keys(S.days).forEach(function(k){S.days[k].segments.forEach(function(s){if(s.state==='core'&&s.task)m[s.task]=(m[s.task]||0)+((s.end==null?now:s.end)-s.start)/60000;});});
+  return m;
+}
+function todosDoneOn(k){return S.todos.filter(function(t){return t.done&&dayKey(t.done)===k;}).sort(function(a,b){return a.done-b.done;});}
+
 function endShift(){
   var now=Date.now(),day=curDay();if(!day)return;
   var o=openSeg(day);if(o)o.end=now;
@@ -2025,7 +2092,7 @@ function renderToday(){
   $('#v-today').classList.toggle('offshift',!S.activeDay&&!loadError);
   renderTodayBanners();
   if(!$('#tiles').children.length) buildTiles();
-  renderPomo();updateTiles();renderChips();renderNudge();renderKpis();renderSessions();renderTimeline();
+  renderPomo();updateTiles();renderChips();renderNudge();renderKpis();renderTodos();renderSessions();renderTimeline();
 }
 var staticBanners=[];
 function banner(kind,html,actLabel,act){staticBanners.push({kind:kind,html:html,actLabel:actLabel,act:act});renderTodayBanners();}
@@ -2042,7 +2109,7 @@ function renderTodayBanners(){
     if(b.kind==='start'){
       var mv=MOTIV[Math.floor(keyDate(todayKey()).getTime()/86400000)%MOTIV.length];
       var sc=document.createElement('div');sc.className='start-card';
-      sc.innerHTML='<div class="txt"><div class="t1">'+esc(mv[0])+'</div><div class="t2">'+esc(mv[1])+'</div><div class="t3">Nothing is timed until you press Start shift. MayhemNull asks what you are working on, then Focus starts from 00:00:00.</div></div>'+
+      sc.innerHTML='<div class="txt"><div class="t1">'+esc(mv[0])+'</div><div class="t2">'+esc(mv[1])+'</div><div class="t3">Nothing is timed until you press Start shift. '+(S.settings.askNote===false?'Focus then starts at once from 00:00:00. Add your tasks below and press Focus on one to work on it.':'MayhemNull asks what you are working on, then Focus starts from 00:00:00.')+'</div></div>'+
         '<button class="btn primary start">'+ICON.play+'<span>Start shift</span></button>';
       sc.querySelector('button').onclick=function(){pickState('core','Shift started at '+fmtClock(Date.now())+'. Focus is running.');};
       box.appendChild(sc);return;
@@ -2145,11 +2212,54 @@ function renderSessions(){
   card.hidden=!S.activeDay&&!sessions(S.days[k]).length;   // nothing to show before the first session of the day
   card.innerHTML='<div class="card-head"><h2>Today\'s sessions</h2><span class="sub">Tap a note to change it.</span></div>'+sessionsHtml(k);
 }
-function timelineHtml(day,now){
-  if(!day||!day.segments.length) return '<div class="empty" style="padding:14px">The timeline fills in as the day goes.</div>';
+function renderTodos(){
+  var card=$('#todoCard');if(!card)return;
+  var old=$('#todoNew'),typed=old?old.value:'',had=old&&document.activeElement===old;   // keep what is being typed across re-renders
+  var k=todayKey(),mins=todoMinutes(),o=curSeg(),cur=o&&o.state==='core'?o.task:null;
+  var open=S.todos.filter(function(t){return !t.done;});
+  var doneToday=S.todos.filter(function(t){return t.done&&dayKey(t.done)===k;}).sort(function(a,b){return b.done-a.done;});
+  var earlier=S.todos.filter(function(t){return t.done&&dayKey(t.done)!==k;}).sort(function(a,b){return b.done-a.done;});
+  var row=function(t){
+    var m=mins[t.id];
+    return '<li class="todo'+(t.done?' done':'')+(t.id===cur?' now':'')+'"><input type="checkbox" data-todo-tick="'+t.id+'"'+(t.done?' checked':'')+' title="'+(t.done?'Move back to To do':'Mark as done')+'">'+
+      '<span class="tx">'+esc(t.text)+'</span>'+
+      (m>=0.5?'<span class="tm">'+fmtM(m)+'</span>':'')+
+      (t.done?'<span class="tm">'+(dayKey(t.done)===k?fmtClock(t.done):fmtDate(dayKey(t.done),{day:'numeric',month:'short'}))+'</span>':
+        (t.id===cur?'<span class="tag live-tag-sm">focusing</span>':'<button class="btn sm" data-todo-focus="'+t.id+'" title="Start Focus on this task">'+ICON.play+'Focus</button>'))+
+      '<button class="x" data-todo-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button></li>';
+  };
+  card.innerHTML='<div class="card-head"><h2>Tasks</h2><span class="sub">'+open.length+' to do &middot; '+doneToday.length+' done today</span></div>'+
+    '<form class="todo-add" id="todoForm"><input class="inp" id="todoNew" maxlength="120" placeholder="Add a task, e.g. Finish the slides" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>'+
+    (open.length?'<ul class="todo-list">'+open.map(row).join('')+'</ul>':'<div class="empty" style="padding:10px">'+(S.todos.length?'All done. Add the next one above.':'No tasks yet. Add what you plan to do today, then tick each one off.')+'</div>')+
+    (doneToday.length||earlier.length?'<div class="todo-sub">Completed ('+(doneToday.length+earlier.length)+')'+
+      (earlier.length?'<button class="link" data-todo-old>'+(UI.todoOld?'Hide earlier days':'Show earlier days ('+earlier.length+')')+'</button>':'')+'</div>'+
+      '<ul class="todo-list">'+doneToday.concat(UI.todoOld?earlier:[]).map(row).join('')+'</ul>':'');
+  var inp=$('#todoNew');inp.value=typed;if(had){inp.focus();inp.setSelectionRange(typed.length,typed.length);}
+  $('#todoForm').onsubmit=function(e){e.preventDefault();var v=$('#todoNew').value;$('#todoNew').value='';if(addTodo(v))$('#todoNew').focus();};
+}
+function dayStatsHtml(day,k,now){
+  var t=totals(day,now),ss=sessions(day,now),done=todosDoneOn(k);
+  var longest=ss.reduce(function(m,x){return Math.max(m,x.min);},0);
+  var breaks=day?day.segments.filter(function(s){return s.state==='break';}).length:0;
+  var share=t.logged>=1?Math.round(t.core/t.logged*100)+'%':'--';
+  var cell=function(v,l){return '<div><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';};
+  return '<div class="day-stats">'+
+    cell(fmtM(t.core),'Focus')+
+    cell(fmtM(t['break']),'Break ('+breaks+' taken)')+
+    cell(share,'of your time on Focus')+
+    cell(String(ss.length),'Sessions, avg '+(ss.length?fmtM(t.core/ss.length):'--'))+
+    cell(ss.length?fmtM(longest):'--','Longest stretch')+
+    cell(String(done.length),'Task'+(done.length===1?'':'s')+' done'+(done.length&&t.core>=1?', '+fmtM(t.core/done.length)+' focus each':''))+
+  '</div>';
+}
+function timelineHtml(day,now,k){
+  k=k||todayKey();
+  if(!day||!day.segments.length) return '<div class="empty" style="padding:14px">The timeline fills in as the day goes.</div>'+(todosDoneOn(k).length?dayStatsHtml(day,k,now):'');
   now=now||Date.now();
   var a=day.segments[0].start,last=day.segments[day.segments.length-1];
   var b=Math.max(last.end==null?now:last.end,a+S.settings.shiftMin*60000);
+  var done=todosDoneOn(k).filter(function(t){return t.done>=a;});
+  if(done.length)b=Math.max(b,done[done.length-1].done);
   var span=b-a;
   var bars=day.segments.map(function(s){
     var e=s.end==null?now:s.end;
@@ -2158,11 +2268,14 @@ function timelineHtml(day,now){
   var ticks='',h=new Date(a);h.setMinutes(0,0,0);h=h.getTime()+3600000;
   var wide=window.innerWidth>=760,step=Math.max(1,Math.ceil(span/3600000/(wide?11:4)));
   for(var x=h;x<b;x+=3600000*step){var p=(x-a)/span*100;if(p>(wide?5:14)&&p<(wide?95:86))ticks+='<span style="left:'+p+'%">'+fmtClock(x)+'</span>';}
-  return '<div class="tl">'+bars+'</div><div class="tl-axis"><span style="left:0;transform:none">'+fmtClock(a)+'</span>'+ticks+'<span style="left:100%;transform:translateX(-100%)">'+fmtClock(b)+'</span></div>'+
-    '<div class="legend">'+STATES.map(function(s){return '<span><i style="background:'+COLOR[s]+'"></i>'+SMETA[s].label+'</span>';}).join('')+'</div>';
+  var pins=done.map(function(t){return '<b style="left:'+((t.done-a)/span*100)+'%" data-tip="'+esc('Task done: '+t.text+'  '+fmtClock(t.done))+'"></b>';}).join('');
+  return '<div class="tl-wrap"><div class="tl-pins">'+pins+'</div><div class="tl">'+bars+'</div></div><div class="tl-axis"><span style="left:0;transform:none">'+fmtClock(a)+'</span>'+ticks+'<span style="left:100%;transform:translateX(-100%)">'+fmtClock(b)+'</span></div>'+
+    '<div class="legend">'+STATES.map(function(s){return '<span><i style="background:'+COLOR[s]+'"></i>'+SMETA[s].label+'</span>';}).join('')+'<span><i class="pin"></i>Task done</span></div>'+
+    dayStatsHtml(day,k,now);
 }
 function renderTimeline(){
-  $('#timelineCard').innerHTML='<div class="card-head"><h2>Your day</h2><span class="sub">Hover a block for details. Fix mistakes on the <button class="link" data-go="board">Day board</button>.</span></div>'+timelineHtml(viewDay());
+  var k=S.activeDay||todayKey();
+  $('#timelineCard').innerHTML='<div class="card-head"><h2>Your day</h2><span class="sub">Hover a block or a pin for details. Fix mistakes on the <button class="link" data-go="board">Day board</button>.</span></div>'+timelineHtml(viewDay(),null,k);
 }
 function streak(){
   var n=0,k=S.activeDay?shiftKey(S.activeDay,-1):shiftKey(todayKey(),S.days[todayKey()]&&S.days[todayKey()].ended?0:-1);
@@ -2185,6 +2298,8 @@ function summaryText(k){
   ss.forEach(function(x){lines.push('  '+fmtClock(x.s.start)+'-'+(x.s.end==null?'now':fmtClock(x.s.end))+'  '+fmtM(x.min)+'  '+(x.note||'(no note)'));});
   lines.push('Time per note:');
   Object.keys(by).sort(function(a,b){return by[b].min-by[a].min;}).forEach(function(n){lines.push('  - '+n+': '+fmtM(by[n].min));});
+  var done=todosDoneOn(k);
+  if(done.length){lines.push('Tasks done ('+done.length+'):');done.forEach(function(x){lines.push('  [x] '+fmtClock(x.done)+'  '+x.text);});}
   return lines.join('\n');
 }
 function showSummary(k,saving){
@@ -2192,7 +2307,7 @@ function showSummary(k,saving){
   var t=totals(d),ss=sessions(d),longest=ss.reduce(function(m,x){return Math.max(m,x.min);},0);
   modal('<div class="modal-h"><h3>Day summary - '+esc(fmtDate(k))+'</h3></div><div class="modal-b">'+
     '<div class="muted small">'+(d.start?fmtClock(d.start)+' to '+(d.ended?fmtClock(d.ended):S.activeDay===k?'now':'--'):'No shift was run on this day - time added by hand only')+'</div>'+
-    '<div class="sum-grid">'+stat(fmtM(t.core),'Focus')+stat(fmtM(t['break']),'Break')+stat(fmtM(t.logged),'Time logged')+
+    '<div class="sum-grid">'+stat(fmtM(t.core),'Focus')+stat(fmtM(t['break']),'Break')+stat(todosDoneOn(k).length,'Tasks done')+
       stat(ss.length,'Sessions')+stat(ss.length?fmtM(longest):'--','Longest session')+stat(t.logged>=1?pct(t.core/t.logged*100):'--','Focus share')+'</div>'+
     sessionsHtml(k)+
     (saving&&S.settings.autoFolder?'<div id="autoSaveLine" class="small" style="margin-top:12px"></div>':'')+
@@ -2640,6 +2755,10 @@ document.addEventListener('click',function(e){
   var g=e.target.closest('[data-go]');if(g){e.preventDefault();if(g.getAttribute('data-go')==='board')UI.boardDay=null;go(g.getAttribute('data-go'));return;}
   var tile=e.target.closest('.tile');if(tile){pickState(tile.getAttribute('data-state'));return;}
   if(e.target.closest('[data-note-change]')){if(curState()==='core')pickState('core');return;}
+  var td=e.target.closest('[data-todo-tick]');if(td){tickTodo(td.getAttribute('data-todo-tick'),td.checked);return;}
+  td=e.target.closest('[data-todo-focus]');if(td){focusTask(td.getAttribute('data-todo-focus'));return;}
+  td=e.target.closest('[data-todo-del]');if(td){delTodo(td.getAttribute('data-todo-del'));return;}
+  if(e.target.closest('[data-todo-old]')){UI.todoOld=!UI.todoOld;saveUI();renderTodos();return;}
   var en=e.target.closest('[data-edit-note]');
   if(en){var p=en.getAttribute('data-edit-note').split('|');if(UI.view!=='board'&&!e.target.closest('#modal'))closeModal();editSessionNote(p[0],+p[1]);return;}
 });
@@ -2812,7 +2931,7 @@ function adopt(c,msg){
   CLOUD.ut=c.ut;CLOUD.dirty=false;CLOUD.lastSync=Date.now();CLOUD.err='';authStore();
   renderAll();if(msg)toast(msg);
 }
-function hasData(d){return Object.keys(d.days||{}).some(function(k){var x=d.days[k];return x.segments.length||x.entries.length||x.adjust.length;});}
+function hasData(d){return (d.todos||[]).length>0||Object.keys(d.days||{}).some(function(k){var x=d.days[k];return x.segments.length||x.entries.length||x.adjust.length;});}
 function dataSummary(d){
   var ks=Object.keys(d.days||{}).filter(function(k){var x=d.days[k];return x.segments.length||x.entries.length||x.adjust.length;}).sort();
   if(!ks.length)return 'no days tracked yet';
@@ -3222,7 +3341,7 @@ function welcome(){
     '<p style="margin:0 0 12px">Two quick things, then you are ready. You can change both later in Settings.</p>'+
     '<div class="form-row"><div class="field"><label>Your name</label><input class="inp" id="wName" maxlength="40" placeholder="e.g. Rahul"></div>'+
     '<div class="field"><label>Shift length (hours)</label><input class="inp num" id="wShift" type="number" min="1" max="16" step="0.5" value="'+(S.settings.shiftMin/60)+'"></div></div>'+
-    '<p class="small muted" style="margin:0">Press <b>Start shift</b> when you begin. MayhemNull asks what you are working on, so every Focus session has a note.</p></div>'+
+    '<p class="small muted" style="margin:0">Press <b>Start shift</b> when you begin and Focus starts at once. Add your tasks on Today and tick each one off when it is done.</p></div>'+
     '<div class="modal-f"><button class="btn primary" id="wGo">Let\'s start</button></div>',function(m){
       var go2=function(){
         var n=$('#wName',m).value.trim(),h=+$('#wShift',m).value;
