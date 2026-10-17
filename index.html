@@ -360,10 +360,19 @@ a.link:hover,button.link:hover{text-decoration:underline}
 .todo .tm{font-size:12px;color:var(--muted);white-space:nowrap}
 .todo.now .tx{font-weight:700;color:var(--core)}
 .todo.done .tx{text-decoration:line-through;color:var(--muted)}
-.todo .x{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px;border-radius:6px;cursor:pointer}
-.todo .x:hover{color:var(--bad);background:var(--bg)}
+.todo .tx .ht-tx{color:inherit;font-weight:inherit;text-decoration:inherit}
+.todo .x,.tbl .x{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px;border-radius:6px;cursor:pointer}
+.todo .x:hover,.tbl .x:hover{color:var(--bad);background:var(--bg)}
 .todo-sub{display:flex;align-items:center;gap:10px;margin:14px 0 4px;font-size:13px;font-weight:600;color:var(--ink2)}
-.todo-sub .link{font-weight:500}
+.todo-sub .link{font-weight:500;margin-left:auto}
+.todo-fold{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;padding:4px 6px 4px 0;font:inherit;color:inherit;cursor:pointer}
+.todo-fold .chev{display:inline-block;width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s}
+.todo-fold[aria-expanded=true] .chev{transform:rotate(90deg)}
+.ht-bar{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:10px;margin-bottom:14px}
+@media (max-width:640px){.ht-bar{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ht-bar .q{grid-column:1/-1}}
+.ht-tx{border:0;background:transparent;padding:2px 4px;margin:-2px -4px;border-radius:6px;text-align:left;font:inherit;color:var(--ink);cursor:pointer;overflow-wrap:anywhere}
+.ht-tx:hover{background:var(--bg)}
+.tbl td.acts{white-space:nowrap;text-align:right}
 
 /* ---------- forms / tables ---------- */
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
@@ -854,8 +863,8 @@ kbd{font-family:"Figtree",system-ui,sans-serif}
 
     <!-- HISTORY -->
     <section class="view" id="v-history"><div class="wrap">
-      <div class="page-head"><h1>History</h1><p>Look back day by day, or pick one note and see all the time you have spent on it.</p></div>
-      <div><div class="tabs" id="histTabs"><button data-t="day">By day</button><button data-t="note">By note</button></div></div>
+      <div class="page-head"><h1>History</h1><p>Look back day by day, pick one note and see all the time you have spent on it, or browse every task you have completed.</p></div>
+      <div><div class="tabs" id="histTabs"><button data-t="day">By day</button><button data-t="note">By note</button><button data-t="tasks">Tasks</button></div></div>
       <div id="histBody"></div>
     </div></section>
 
@@ -1751,7 +1760,7 @@ function recentNotes(max){
 /* ================= actions ================= */
 function startShift(now){
   var k=dayKey(now),d=getDay(k);
-  if(!d.start)d.start=now;
+  if(!d.start){d.start=now;S.shiftAt=now;}
   d.runFrom=now;
   if(d.ended){audit('Shift resumed at '+fmtClock(now),k);d.ended=null;}
   S.activeDay=k;
@@ -1936,6 +1945,12 @@ function todoMinutes(){
   Object.keys(S.days).forEach(function(k){S.days[k].segments.forEach(function(s){if(s.state==='core'&&s.task)m[s.task]=(m[s.task]||0)+((s.end==null?now:s.end)-s.start)/60000;});});
   return m;
 }
+/* the start of the current (or last) shift: Today shows only tasks completed since then */
+function shiftCut(){
+  if(S.shiftAt)return S.shiftAt;
+  var d=S.activeDay&&S.days[S.activeDay];
+  return (d&&(d.shiftStart||d.start))||keyDate(todayKey()).getTime();
+}
 function todosDoneOn(k){return S.todos.filter(function(t){return t.done&&dayKey(t.done)===k;}).sort(function(a,b){return a.done-b.done;});}
 
 /* The newest ended shift that can still be resumed: today's, or one that ended less than 6 hours ago (past midnight) */
@@ -1958,6 +1973,7 @@ function newShift(){
     var now=Date.now(),k=dayKey(now),d=getDay(k);
     if(d.segments.length){d.shiftStart=now;audit('New shift started at '+fmtClock(now),k);}   // the counters on Today start again from 00:00:00
     if(!d.start)d.start=now;
+    S.shiftAt=now;   // completed tasks from earlier shifts leave Today (they stay in History > Tasks)
     d.ended=null;d.runFrom=now;S.activeDay=k;hbWrite(now);
   },'New shift started at '+fmtClock(Date.now())+'. Focus is running.');
 }
@@ -2295,25 +2311,26 @@ function renderTodos(){
   var old=$('#todoNew'),typed=old?old.value:'',had=old&&document.activeElement===old;   // keep what is being typed across re-renders
   var k=todayKey(),mins=todoMinutes(),o=curSeg(),cur=o&&o.state==='core'?o.task:null;
   var open=S.todos.filter(function(t){return !t.done;});
-  var doneToday=S.todos.filter(function(t){return t.done&&dayKey(t.done)===k;}).sort(function(a,b){return b.done-a.done;});
-  var earlier=S.todos.filter(function(t){return t.done&&dayKey(t.done)!==k;}).sort(function(a,b){return b.done-a.done;});
+  var cut=shiftCut(),doneNow=S.todos.filter(function(t){return t.done&&t.done>=cut;}).sort(function(a,b){return b.done-a.done;});
+  var allDone=S.todos.filter(function(t){return t.done;}).length;
   var row=function(t){
     var m=mins[t.id];
     return '<li class="todo'+(t.done?' done':'')+(t.id===cur?' now':'')+'" data-id="'+t.id+'">'+
       (t.done?'':'<span class="grip" data-todo-grip title="Drag to reorder" aria-label="Drag to reorder">'+ICON.grip+'</span>')+
       '<input type="checkbox" data-todo-tick="'+t.id+'"'+(t.done?' checked':'')+' title="'+(t.done?'Move back to To do':'Mark as done')+'">'+
-      '<span class="tx">'+esc(t.text)+'</span>'+
+      '<span class="tx"><button class="ht-tx" data-ht-edit="'+t.id+'" title="Rename this task">'+esc(t.text)+'</button></span>'+
       (m>=0.5?'<span class="tm">'+fmtM(m)+'</span>':'')+
       (t.done?'<span class="tm">'+(dayKey(t.done)===k?fmtClock(t.done):fmtDate(dayKey(t.done),{day:'numeric',month:'short'}))+'</span>':
         (t.id===cur?'<span class="tag live-tag-sm">focusing</span><button class="btn sm" data-todo-unfocus title="Stop working on this task. Focus keeps running.">Unfocus</button>':'<button class="btn sm" data-todo-focus="'+t.id+'" title="Start Focus on this task">'+ICON.play+'Focus</button>'))+
       '<button class="x" data-todo-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button></li>';
   };
-  card.innerHTML='<div class="card-head"><h2>Tasks</h2><span class="sub">'+open.length+' to do &middot; '+doneToday.length+' done today</span></div>'+
+  card.innerHTML='<div class="card-head"><h2>Tasks</h2><span class="sub">'+open.length+' to do &middot; '+doneNow.length+' done this shift</span></div>'+
     '<form class="todo-add" id="todoForm"><input class="inp" id="todoNew" maxlength="120" placeholder="Add a task, e.g. Finish the slides" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>'+
     (open.length?'<ul class="todo-list">'+open.map(row).join('')+'</ul>':'<div class="empty" style="padding:10px">'+(S.todos.length?'All done. Add the next one above.':'No tasks yet. Add what you plan to do today, then tick each one off.')+'</div>')+
-    (doneToday.length||earlier.length?'<div class="todo-sub">Completed ('+(doneToday.length+earlier.length)+')'+
-      (earlier.length?'<button class="link" data-todo-old>'+(UI.todoOld?'Hide earlier days':'Show earlier days ('+earlier.length+')')+'</button>':'')+'</div>'+
-      '<ul class="todo-list">'+doneToday.concat(UI.todoOld?earlier:[]).map(row).join('')+'</ul>':'');
+    (doneNow.length||allDone?'<div class="todo-sub">'+
+      (doneNow.length?'<button class="todo-fold" data-todo-fold aria-expanded="'+(UI.todoOpen?'true':'false')+'" title="'+(UI.todoOpen?'Hide':'Show')+' completed tasks"><span class="chev"></span>Completed this shift ('+doneNow.length+')</button>':'<span>No tasks completed this shift yet</span>')+
+      (allDone?'<button class="link" data-go-tasks>All completed tasks</button>':'')+'</div>'+
+      (doneNow.length&&UI.todoOpen?'<ul class="todo-list">'+doneNow.map(row).join('')+'</ul>':''):'');
   var inp=$('#todoNew');inp.value=typed;if(had){inp.focus();inp.setSelectionRange(typed.length,typed.length);}
   $('#todoForm').onsubmit=function(e){e.preventDefault();var v=$('#todoNew').value;$('#todoNew').value='';if(addTodo(v))$('#todoNew').focus();};
 }
@@ -2544,6 +2561,7 @@ function renderBoardLog(k){
 function renderHistory(){
   $$('#histTabs button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===UI.hist);b.onclick=function(){UI.hist=b.getAttribute('data-t');saveUI();renderHistory();};});
   if(UI.hist==='note') return histByNote();
+  if(UI.hist==='tasks') return histTasks();
   var keys=Object.keys(S.days).filter(function(k){var d=S.days[k];return d.segments.length||d.adjust.length;}).sort().reverse();
   var live=S.activeDay;
   if(!keys.length){$('#histBody').innerHTML='<div class="card"><div class="empty">No days logged yet. Your history builds up from today.</div></div>';return;}
@@ -2556,6 +2574,57 @@ function renderHistory(){
     '<div class="tbl-wrap"><table class="tbl"><tr><th>Day</th><th class="r">Logged</th><th class="r">Focus</th><th class="r">Break</th><th class="r">Sessions</th><th>Most time on</th></tr>'+rows+'</table></div>'+
     '<p class="small muted" style="margin:10px 0 0">Click a day to open it on the Day board.'+(live&&S.days[live]?' The average leaves out the day still in progress until you end the shift.':'')+'</p></div>';
   $$('[data-open]').forEach(function(r){r.onclick=function(){UI.boardDay=r.getAttribute('data-open');go('board');};});
+}
+/* History > Tasks: every completed task with its date, searchable, filterable and sortable; rename, restore or remove */
+function histTasks(){
+  var f=UI.ht||(UI.ht={q:'',p:'all',sort:'new'});
+  var n=S.todos.filter(function(t){return t.done;}).length;
+  if(!n){$('#histBody').innerHTML='<div class="card"><div class="empty">No completed tasks yet. Tick a task on Today and it shows up here.</div></div>';return;}
+  var opt=function(v,l,cur){return '<option value="'+v+'"'+(v===cur?' selected':'')+'>'+l+'</option>';};
+  $('#histBody').innerHTML='<div class="card"><div class="card-head"><h2>Completed tasks</h2><span class="sub" id="htCount"></span></div>'+
+    '<div class="ht-bar"><input class="inp q" id="htQ" placeholder="Search tasks" value="'+esc(f.q)+'" autocomplete="off">'+
+    '<select class="inp" id="htP" title="When it was completed">'+opt('all','All time',f.p)+opt('today','Today',f.p)+opt('7','Last 7 days',f.p)+opt('30','Last 30 days',f.p)+'</select>'+
+    '<select class="inp" id="htS" title="Sort by">'+opt('new','Newest first',f.sort)+opt('old','Oldest first',f.sort)+opt('az','A to Z',f.sort)+opt('time','Most focus time',f.sort)+'</select></div>'+
+    '<div id="htRows"></div></div>';
+  var upd=function(){f.q=$('#htQ').value;f.p=$('#htP').value;f.sort=$('#htS').value;saveUI();htRows();};
+  $('#htQ').oninput=upd;$('#htP').onchange=upd;$('#htS').onchange=upd;
+  $('#histBody').onclick=function(e){
+    var b=e.target.closest('[data-ht-back]');if(b){var t=todoById(b.getAttribute('data-ht-back'));if(t){t.done=null;afterChange();toast('Moved back to To do: '+t.text);}return;}
+    b=e.target.closest('[data-ht-del]');if(b){delTodo(b.getAttribute('data-ht-del'));}
+  };
+  htRows();
+}
+function htRows(){
+  var box=$('#htRows');if(!box)return;
+  var f=UI.ht,mins=todoMinutes(),now=Date.now(),q=f.q.trim().toLowerCase(),tk=todayKey();
+  var list=S.todos.filter(function(t){
+    if(!t.done)return false;
+    if(q&&t.text.toLowerCase().indexOf(q)<0)return false;
+    if(f.p==='today')return dayKey(t.done)===tk;
+    if(f.p==='7'||f.p==='30')return t.done>=keyDate(shiftKey(tk,-(+f.p-1))).getTime();
+    return true;
+  });
+  var by={new:function(a,b){return b.done-a.done;},old:function(a,b){return a.done-b.done;},az:function(a,b){return a.text.localeCompare(b.text,undefined,{sensitivity:'base'});},time:function(a,b){return (mins[b.id]||0)-(mins[a.id]||0)||b.done-a.done;}};
+  list.sort(by[f.sort]||by.new);
+  $('#htCount').textContent=list.length+' of '+S.todos.filter(function(t){return t.done;}).length;
+  if(!list.length){box.innerHTML='<div class="empty">No completed tasks match.</div>';return;}
+  box.innerHTML='<div class="tbl-wrap"><table class="tbl"><tr><th>Completed</th><th>Task</th><th class="r">Focus</th><th></th></tr>'+
+    list.map(function(t){var m=mins[t.id];
+      return '<tr><td class="num" style="white-space:nowrap">'+esc(fmtDate(dayKey(t.done),{weekday:'short',day:'numeric',month:'short',year:'numeric'}))+', '+fmtClock(t.done)+'</td>'+
+        '<td><button class="ht-tx" data-ht-edit="'+t.id+'" title="Rename this task">'+esc(t.text)+'</button></td>'+
+        '<td class="r num">'+(m>=0.5?fmtM(m):'--')+'</td>'+
+        '<td class="acts"><button class="btn sm" data-ht-back="'+t.id+'" title="Move back to To do">Restore</button> <button class="x" data-ht-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button></td></tr>';
+    }).join('')+'</table></div>';
+}
+function htEdit(id){
+  var t=todoById(id);if(!t)return;
+  modal('<div class="modal-h"><h3>Rename task</h3></div><div class="modal-b"><input class="inp" id="htName" maxlength="120" value="'+esc(t.text)+'"><div class="form-msg" id="htMsg"></div></div>'+
+    '<div class="modal-f"><button class="btn" data-close>Cancel</button><button class="btn primary" id="htSave">Save</button></div>',function(m){
+    var inp=$('#htName',m);
+    var save1=function(){var v=inp.value.trim().slice(0,120);if(!v){$('#htMsg',m).textContent='A task needs a name.';return;}var x=todoById(id);if(x&&x.text!==v){x.text=v;afterChange();}closeModal();};
+    $('#htSave',m).onclick=save1;inp.onkeydown=function(e){if(e.key==='Enter')save1();};
+    setTimeout(function(){inp.focus();inp.select();},30);
+  });
 }
 function histByNote(){
   var agg={},byDay={};
@@ -2840,7 +2909,9 @@ document.addEventListener('click',function(e){
   td=e.target.closest('[data-todo-focus]');if(td){focusTask(td.getAttribute('data-todo-focus'));return;}
   if(e.target.closest('[data-todo-unfocus]')){unfocusTask();return;}
   td=e.target.closest('[data-todo-del]');if(td){delTodo(td.getAttribute('data-todo-del'));return;}
-  if(e.target.closest('[data-todo-old]')){UI.todoOld=!UI.todoOld;saveUI();renderTodos();return;}
+  var he=e.target.closest('[data-ht-edit]');if(he){htEdit(he.getAttribute('data-ht-edit'));return;}
+  if(e.target.closest('[data-todo-fold]')){UI.todoOpen=!UI.todoOpen;saveUI();renderTodos();return;}
+  if(e.target.closest('[data-go-tasks]')){UI.hist='tasks';saveUI();go('history');return;}
   var en=e.target.closest('[data-edit-note]');
   if(en){var p=en.getAttribute('data-edit-note').split('|');if(UI.view!=='board'&&!e.target.closest('#modal'))closeModal();editSessionNote(p[0],+p[1]);return;}
 });
