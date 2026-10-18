@@ -848,9 +848,9 @@ html .hero.has-wall .streak{background:rgba(255,255,255,.18);color:#fff}
 body.has-wall #wallBg{opacity:1}
 body.has-wall .nav-panel{background:color-mix(in srgb,var(--surface) 52%,transparent);-webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4);border-right-color:rgba(255,255,255,.2)}
 body.has-wall .nav-head,body.has-wall .nav-foot{border-color:color-mix(in srgb,var(--line) 60%,transparent)}
-body.has-wall .card,body.has-wall .today-sum,body.has-wall .pomo,body.has-wall .pomo-panel,body.has-wall .start-card,body.has-wall .kpi{background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
-body.has-wall .tile:not(.active){background:color-mix(in srgb,color-mix(in srgb,var(--c) 6%,var(--surface)) 88%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
-body.has-wall .page-head{background:color-mix(in srgb,var(--surface) 80%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-radius:18px;padding:16px 20px}
+body.has-wall .card,body.has-wall .today-sum,body.has-wall .pomo,body.has-wall .pomo-panel,body.has-wall .start-card,body.has-wall .kpi{background:color-mix(in srgb,var(--surface) var(--glass,88%),transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+body.has-wall .tile:not(.active){background:color-mix(in srgb,color-mix(in srgb,var(--c) 6%,var(--surface)) var(--glass,88%),transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+body.has-wall .page-head{background:color-mix(in srgb,var(--surface) var(--glass,88%),transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-radius:18px;padding:16px 20px}
 
 /* Settings > Home page */
 .lk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px 28px;margin-top:12px;padding-top:16px;border-top:1px solid var(--line)}
@@ -869,6 +869,15 @@ body.has-wall .page-head{background:color-mix(in srgb,var(--surface) 80%,transpa
 .lk-prev{height:112px;border-radius:14px;border:1px dashed var(--line);background:var(--bg) center/cover no-repeat;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px}
 .lk-prev.has{border-style:solid}
 .lk-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+@media (min-width:1021px){.lk-grid .lk-sec.lk-glass{grid-column:3/span 2}}
+.lk-glass h3{display:flex;align-items:baseline;gap:8px}
+.lk-glass h3 b{font-family:var(--display);font-weight:650;color:var(--blue)}
+.lk-glass input[type=range]{width:100%;accent-color:var(--blue);margin:4px 0 2px}
+.lk-glass input[type=range]:disabled{opacity:.45}
+.lk-scale{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.quote-by[hidden],#nextQuote[hidden],#autoQuote[hidden]{display:none}
+@media (max-width:760px){.hero-side{justify-content:flex-start;gap:8px}.hero-side .pomo-mini{margin-right:auto}}
+.quote-ed textarea.inp{height:auto;min-height:96px;padding:10px 12px;line-height:1.5;resize:vertical}
 @media (max-width:1020px){.lk-grid{grid-template-columns:minmax(0,1fr)}.lk-grid .lk-sec{grid-column:1/-1}}
 
 /* Notes card */
@@ -939,6 +948,8 @@ textarea.note-edit{height:auto;min-height:150px;padding:10px 12px;line-height:1.
           <div class="quote-by" id="quoteBy"></div>
         </div>
         <div class="hero-side">
+          <button class="icon-btn" id="editQuote" title="Write your own quote or goal"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg></button>
+          <button class="icon-btn" id="autoQuote" hidden title="Back to automatic quotes"><svg class="i" viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></button>
           <button class="icon-btn" id="nextQuote" title="Another quote"><svg class="i" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
           <button class="icon-btn pomo-mini" id="pomoMini" hidden title="Show the Pomodoro timer"></button>
           <span class="streak" id="streak" hidden></span>
@@ -980,12 +991,8 @@ textarea.note-edit{height:auto;min-height:150px;padding:10px 12px;line-height:1.
 
     <!-- SETTINGS -->
     <section class="view" id="v-settings"><div class="wrap">
-      <div class="page-head"><h1>Settings</h1><p>Your shift, home page, look, reminders and data.</p></div>
-      <div class="grid2">
-        <div class="card" id="setShift"></div>
-        <div class="card" id="setReminders"></div>
-        <div class="card" id="setPomo"></div>
-      </div>
+      <div class="page-head"><h1>Settings</h1><p>Your shift, home page, look and data.</p></div>
+      <div class="card" id="setShift"></div>
       <div class="card" id="setLook"></div>
       <div class="card" id="setAccount" hidden></div>
       <div class="card" id="setData"></div>
@@ -1130,7 +1137,7 @@ function statusHtml(kind,text){var ic=kind==='good'?ICON.check:kind==='info'?ICO
 function defaults(){
   return {
     version:1,
-    settings:{name:'',shiftMin:540,breakMin:60,target:100,focusMin:90,breakAlertMin:30,autoCore:false,gapMin:20,idleDetect:false,idleMin:10,autoFolder:false,gapAsk:false,pomoMin:1,askNote:false,keepDone:false,theme:{preset:'pine'}},
+    settings:{name:'',shiftMin:540,breakMin:60,target:100,focusMin:90,breakAlertMin:30,autoCore:false,gapMin:20,idleDetect:false,idleMin:10,autoFolder:false,gapAsk:false,pomoMin:1,askNote:false,keepDone:false,theme:{preset:'pine'},myQuote:null,quoteMode:'auto'},
     reasons:{diverted:['Meeting','Training','Emails / reading','Meal','Coaching / 1-2-1','Other'],downtime:['System issue','Fire drill','Power / internet','Waiting on others','Other']},
     tasks:[],   // the old counted-units tasks; kept empty so older backups still load
     todos:[],   // the to-do list on Today: {id,text,created,done}, repeating ones also {rep,due,next}
@@ -1176,7 +1183,7 @@ function audit(msg,k){S.audit.unshift({ts:Date.now(),day:k||null,msg:msg});if(S.
 function hbRead(){try{return +localStorage.getItem(HBKEY)||0;}catch(e){return 0;}}
 function hbWrite(t){try{localStorage.setItem(HBKEY,String(t||Date.now()));}catch(e){}}
 
-var UI={collapsed:false,pinned:true,dark:'light',view:'today',hist:'day',histTask:null,period:'7',quoteOff:0,boardDay:null};
+var UI={collapsed:false,pinned:true,dark:'light',glass:12,view:'today',hist:'day',histTask:null,period:'7',quoteOff:0,boardDay:null};
 function loadUI(){try{Object.assign(UI,JSON.parse(localStorage.getItem(UIKEY)||'{}'));}catch(e){}}
 function saveUI(){try{localStorage.setItem(UIKEY,JSON.stringify(UI));}catch(e){}}
 
@@ -2332,9 +2339,16 @@ function renderToday(){
   var h=new Date().getHours();
   var part=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
   $('#hello').textContent=part+(S.settings.name?', '+S.settings.name:'')+' - '+new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
-  var qi=(Math.floor(keyDate(todayKey()).getTime()/86400000)+UI.quoteOff)%QUOTES.length;
-  $('#quote').textContent='"'+QUOTES[qi][0]+'"';
-  $('#quoteBy').textContent='- '+QUOTES[qi][1];
+  var mq=myQuote();
+  if(mq){$('#quote').textContent=mq.text;$('#quoteBy').textContent=mq.by?'- '+mq.by:'';}
+  else{
+    var qi=(Math.floor(keyDate(todayKey()).getTime()/86400000)+UI.quoteOff)%QUOTES.length;
+    $('#quote').textContent='"'+QUOTES[qi][0]+'"';
+    $('#quoteBy').textContent='- '+QUOTES[qi][1];
+  }
+  $('#quoteBy').hidden=!$('#quoteBy').textContent;
+  $('#nextQuote').hidden=!!mq;$('#autoQuote').hidden=!mq;
+  $('#editQuote').title=mq?'Edit your quote or goal':'Write your own quote or goal';
   var sk=streak();var el=$('#streak');
   if(sk>=2){el.hidden=false;el.textContent=sk+' days in a row with 30+ min of focus';}else el.hidden=true;
   $('#v-today').classList.toggle('offshift',!S.activeDay&&!loadError);
@@ -2945,18 +2959,10 @@ function renderSettings(){
   renderSetPomo();
   renderLook();
   $('#setShift').innerHTML='<div class="card-head"><h2>Shift</h2></div>'+
-    '<div class="form-row">'+fld('Your name','name','text',s.name)+fld('Shift length (hours)','shiftH','number',+(s.shiftMin/60).toFixed(2),'min="1" max="16" step="0.25"')+'</div>'+
-    '<div class="form-row">'+fld('Break allowance (min/day)','breakMin','number',s.breakMin,'min="0" max="240"')+'</div>'+
+    '<div class="form-row">'+fld('Your name','name','text',s.name)+fld('Shift length (hours)','shiftH','number',+(s.shiftMin/60).toFixed(2),'min="1" max="16" step="0.25"')+fld('Break allowance (min/day)','breakMin','number',s.breakMin,'min="0" max="240"')+'</div>'+
     '<label class="check"><input type="checkbox" data-s="askNote" '+(s.askNote!==false?'checked':'')+'><span><b>Ask for a note when Focus starts</b><br><span class="small muted">Off: Focus starts at once. You can still add or change a note any time.</span></span></label>'+
     '<label class="check"><input type="checkbox" data-s="autoCore" '+(s.autoCore?'checked':'')+'><span><b>Start Focus automatically when I open MayhemNull</b><br><span class="small muted">Off: nothing is timed until you press Start shift. On: Focus starts (with no note) when the page is on screen. Never restarts a shift you already ended today.</span></span></label>';
-  var idleOK='IdleDetector' in window;
-  $('#setReminders').innerHTML='<div class="card-head"><h2>Reminders and away detection</h2></div>'+
-    '<div class="form-row">'+fld('Suggest a break after Focus for (min)','focusMin','number',s.focusMin,'min="0" max="300"')+fld('Warn when one break passes (min)','breakAlertMin','number',s.breakAlertMin,'min="0" max="240"')+'</div>'+
-    '<label class="check"><input type="checkbox" data-s="gapAsk" '+(s.gapAsk?'checked':'')+'><span><b>Ask how to count time while the app was closed</b><br><span class="small muted">Off: the timer simply keeps running until you press End shift, or 24 hours pass. If midnight passes while the app is closed or the computer is off, the shift is closed at the moment it stopped and the new day starts fresh.</span></span></label>'+
-    '<div class="form-row">'+fld('Ask about gaps longer than (min)','gapMin','number',s.gapMin,'min="5" max="240"')+fld('Away threshold (min)','idleMin','number',s.idleMin,'min="1" max="120"')+'</div>'+
-    '<label class="check"><input type="checkbox" data-s="idleDetect" '+(s.idleDetect?'checked':'')+(idleOK?'':' disabled')+'><span><b>Notice when I step away from the computer</b><br><span class="small muted">'+(idleOK?'Uses the browser\'s idle detection (Chrome asks your permission). When you come back you choose how the away time counts.':'Not supported in this browser. The gap check above still works.')+'</span></span></label>'+
-    '<p class="small muted" style="margin:6px 0 0">Set any reminder to 0 to turn it off. Research on short breaks shows clear gains in energy and less fatigue; the exact "best" interval is not settled, so pick what suits you.</p>';
-  $$('#setShift [data-s], #setReminders [data-s]').forEach(function(inp){
+  $$('#setShift [data-s]').forEach(function(inp){
     inp.onchange=function(){
       var k=inp.getAttribute('data-s'),v=inp.type==='checkbox'?inp.checked:inp.value;
       if(k==='name'){v=String(v).trim()||'You';}
@@ -3111,8 +3117,10 @@ function applyLook(){
   var hero=$('.hero');
   if(hero){hero.classList.toggle('has-wall',!!WALL.hero);if(WALL.hero)hero.style.setProperty('--hero-img','url("'+WALL.hero+'")');else hero.style.removeProperty('--hero-img');}
   if(WALL.page)$('#wallBg').style.setProperty('--wall-img','url("'+WALL.page+'")');
+  if(WALL.page)root.style.setProperty('--glass',(100-glassPct())+'%');else root.style.removeProperty('--glass');
   document.body.classList.toggle('has-wall',!!WALL.page);
 }
+function glassPct(){var g=+UI.glass;return g>=0&&g<=100?Math.round(g):12;}
 function setDark(m){UI.dark=m;saveUI();renderAll();}
 function wallKey(w){return 'wall.'+w;}
 function setWallUrl(w,blob){
@@ -3154,6 +3162,9 @@ function renderLook(){
         '<div class="lk-pick"><label><input type="color" data-lk-c="core" value="'+t.core+'">Focus</label><label><input type="color" data-lk-c="brk" value="'+t.brk+'">Break</label><label><input type="color" data-lk-c="frame" value="'+t.frame+'">Top bar</label>'+
         (pre!=='pine'?'<button class="btn sm" data-lk-preset="pine">Reset</button>':'')+'</div></div>'+
       pic('hero','Quote picture')+pic('page','Page wallpaper')+
+      '<div class="lk-sec lk-glass"><h3>Section transparency <b class="num" id="lkGlassV">'+glassPct()+'%</b></h3>'+
+        '<input type="range" id="lkGlass" min="0" max="100" step="1" value="'+glassPct()+'" aria-label="Section transparency"'+(WALL.page?'':' disabled')+'>'+
+        '<div class="lk-scale"><span>Solid</span><span>'+(WALL.page?'See-through':'Add a page wallpaper first')+'</span></div></div>'+
     '</div>'+
     '<p class="small muted" style="margin:14px 0 0">Pictures and dark mode stay on this device. Colours are saved with your data.</p>';
   $('#keepDoneChk').onchange=function(e){s.keepDone=e.target.checked;audit('Keep completed tasks on Today: '+(s.keepDone?'on':'off'));save();toast(s.keepDone?'Completed tasks now stay on Today.':'Today shows only this shift\'s completed tasks again.');};
@@ -3163,8 +3174,36 @@ function renderLook(){
     inp.oninput=function(){var c=curTheme(),nt={preset:'custom',core:c.core,brk:c.brk,frame:c.frame};nt[inp.getAttribute('data-lk-c')]=inp.value;s.theme=nt;applyLook();};
     inp.onchange=function(){inp.oninput();audit('Colours: your own');save();renderAll();};
   });
+  var gl=$('#lkGlass');
+  gl.oninput=function(){UI.glass=+gl.value;$('#lkGlassV').textContent=gl.value+'%';applyLook();};
+  gl.onchange=function(){gl.oninput();saveUI();};
   $$('[data-lk-wall]',box).forEach(function(b){b.onclick=function(){pickWall(b.getAttribute('data-lk-wall'));};});
   $$('[data-lk-unwall]',box).forEach(function(b){b.onclick=function(){removeWall(b.getAttribute('data-lk-unwall'));};});
+}
+
+/* ---- your own quote or goal on Today (S.settings.myQuote, follows the account); "auto" goes back to the daily quotes ---- */
+function myQuote(){var q=S.settings.myQuote;return S.settings.quoteMode==='mine'&&q&&q.text?q:null;}
+function setQuoteMode(m){
+  S.settings.quoteMode=m;audit(m==='mine'?'Quote: your own':'Quote: automatic');save();renderToday();
+  toast(m==='mine'?'Your quote is on Today.':'Back to automatic quotes. Your own quote is kept for later.');
+}
+function editQuote(){
+  var q=S.settings.myQuote||{},mine=!!myQuote();
+  modal('<div class="modal-h"><h3>Your quote or goal</h3></div><div class="modal-b quote-ed">'+
+    '<div class="field"><label for="qTxt">Quote or goal</label><textarea class="inp" id="qTxt" maxlength="300" rows="3" placeholder="e.g. Clear the CFA Level 1 by June"></textarea></div>'+
+    '<div class="field" style="margin-top:12px"><label for="qBy">By (optional)</label><input class="inp" id="qBy" maxlength="80" placeholder="e.g. Marcus Aurelius"></div></div>'+
+    '<div class="modal-f">'+(mine?'<button class="btn" id="qAuto" style="margin-right:auto">Use automatic quotes</button>':'')+'<button class="btn" data-close>Cancel</button><button class="btn primary" id="qOk">Save</button></div>',function(m){
+    var t=$('#qTxt',m),b=$('#qBy',m);t.value=q.text||'';b.value=q.by||'';
+    setTimeout(function(){t.focus();t.setSelectionRange(t.value.length,t.value.length);},0);
+    var ok=function(){
+      var v=t.value.replace(/\s+/g,' ').trim(),by=b.value.replace(/\s+/g,' ').trim();
+      if(!v){t.focus();return;}
+      S.settings.myQuote={text:v.slice(0,300),by:by.slice(0,80)};closeModal();setQuoteMode('mine');
+    };
+    $('#qOk',m).onclick=ok;
+    t.onkeydown=b.onkeydown=function(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey||e.target===b)){e.preventDefault();ok();}};
+    var a=$('#qAuto',m);if(a)a.onclick=function(){closeModal();setQuoteMode('auto');};
+  });
 }
 
 /* ================= NOTES: things to keep for later, on Today below the tasks ================= */
@@ -3788,6 +3827,8 @@ muRender();
 $('#hamburger').onclick=function(){document.body.classList.toggle('nav-open');};
 $('#navScrim').onclick=function(){document.body.classList.remove('nav-open');};
 $('#nextQuote').onclick=function(){UI.quoteOff=(UI.quoteOff+1)%QUOTES.length;saveUI();renderToday();};
+$('#editQuote').onclick=editQuote;
+$('#autoQuote').onclick=function(){setQuoteMode('auto');};
 $('#shiftBtn').onclick=function(){
   if(S.activeDay){confirmBox('End your shift?','All timers stop and you will see your day summary. You can carry on any time with Resume shift, or start a new shift, on the Today page.','End shift',endShift);return;}
   var le=lastEnded();if(le)resumeShift(le);else newShift();
