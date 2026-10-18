@@ -869,6 +869,8 @@ body.has-wall .page-head{background:color-mix(in srgb,var(--surface) var(--glass
 .lk-prev{height:112px;border-radius:14px;border:1px dashed var(--line);background:var(--bg) center/cover no-repeat;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px}
 .lk-prev.has{border-style:solid}
 .lk-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.lk-sync{margin-top:8px;font-size:12px;color:var(--muted)}
+.lk-sync .status svg{width:13px;height:13px}
 @media (min-width:1021px){.lk-grid .lk-sec.lk-glass{grid-column:3/span 2}}
 .lk-glass h3{display:flex;align-items:baseline;gap:8px}
 .lk-glass h3 b{font-family:var(--display);font-weight:650;color:var(--blue)}
@@ -1137,7 +1139,7 @@ function statusHtml(kind,text){var ic=kind==='good'?ICON.check:kind==='info'?ICO
 function defaults(){
   return {
     version:1,
-    settings:{name:'',shiftMin:540,breakMin:60,target:100,focusMin:90,breakAlertMin:30,autoCore:false,gapMin:20,idleDetect:false,idleMin:10,autoFolder:false,gapAsk:false,pomoMin:1,askNote:false,keepDone:false,theme:{preset:'pine'},myQuote:null,quoteMode:'auto'},
+    settings:{name:'',shiftMin:540,breakMin:60,target:100,focusMin:90,breakAlertMin:30,autoCore:false,gapMin:20,idleDetect:false,idleMin:10,autoFolder:false,gapAsk:false,pomoMin:1,askNote:false,keepDone:false,theme:{preset:'pine'},myQuote:null,quoteMode:'auto',glass:12,walls:{}},
     reasons:{diverted:['Meeting','Training','Emails / reading','Meal','Coaching / 1-2-1','Other'],downtime:['System issue','Fire drill','Power / internet','Waiting on others','Other']},
     tasks:[],   // the old counted-units tasks; kept empty so older backups still load
     todos:[],   // the to-do list on Today: {id,text,created,done}, repeating ones also {rep,due,next}
@@ -1156,6 +1158,7 @@ function migrate(d){
   d.todos=Array.isArray(d.todos)?d.todos:[];
   d.notes=Array.isArray(d.notes)?d.notes:[];
   if(!d.settings.theme||typeof d.settings.theme!=='object')d.settings.theme={preset:'pine'};
+  if(!d.settings.walls||typeof d.settings.walls!=='object')d.settings.walls={};
   d.pomo=d.pomo&&typeof d.pomo==='object'?d.pomo:pomoDefaults();d.pomo.cfg=Object.assign(pomoDefaults().cfg,d.pomo.cfg||{});d.pomo.log=d.pomo.log||{};d.pomo.next=d.pomo.next||'focus';
   Object.keys(d.days).forEach(function(k){var x=d.days[k];x.segments=x.segments||[];x.entries=x.entries||[];x.adjust=x.adjust||[];});
   if(d.activeDay&&!d.days[d.activeDay]) d.activeDay=null;
@@ -1183,7 +1186,7 @@ function audit(msg,k){S.audit.unshift({ts:Date.now(),day:k||null,msg:msg});if(S.
 function hbRead(){try{return +localStorage.getItem(HBKEY)||0;}catch(e){return 0;}}
 function hbWrite(t){try{localStorage.setItem(HBKEY,String(t||Date.now()));}catch(e){}}
 
-var UI={collapsed:false,pinned:true,dark:'light',glass:12,view:'today',hist:'day',histTask:null,period:'7',quoteOff:0,boardDay:null};
+var UI={collapsed:false,pinned:true,dark:'light',view:'today',hist:'day',histTask:null,period:'7',quoteOff:0,boardDay:null};
 function loadUI(){try{Object.assign(UI,JSON.parse(localStorage.getItem(UIKEY)||'{}'));}catch(e){}}
 function saveUI(){try{localStorage.setItem(UIKEY,JSON.stringify(UI));}catch(e){}}
 
@@ -3000,7 +3003,7 @@ function renderSettings(){
   $('#wipe').onclick=function(){
     modal('<div class="modal-h"><h3>Delete all data?</h3></div><div class="modal-b"><p>This removes every day, note and setting from this browser. It cannot be undone. Take a backup first if you might want it.</p><div class="field"><label>Type DELETE to confirm</label><input class="inp" id="wipeTxt"></div></div><div class="modal-f"><button class="btn" data-close>Cancel</button><button class="btn danger" id="wipeGo" disabled>Delete everything</button></div>',function(m){
       $('#wipeTxt',m).oninput=function(e){$('#wipeGo',m).disabled=e.target.value!=='DELETE';};
-      $('#wipeGo',m).onclick=function(){S=defaults();S.tasks=[];['hero','page'].forEach(function(w){kvSet(wallKey(w),null).catch(function(){});setWallUrl(w,null);});save();closeModal();staticBanners=[];renderAll();toast('All data deleted.');};
+      $('#wipeGo',m).onclick=function(){S=defaults();S.tasks=[];['hero','page'].forEach(function(w){wallSet(w,null);});save();closeModal();staticBanners=[];renderAll();toast('All data deleted.');};
     });
   };
   $('#setAudit').innerHTML='<div class="card-head"><h2>Change log</h2><span class="sub">Every manual fix, so your numbers stay trustworthy</span></div>'+
@@ -3120,21 +3123,52 @@ function applyLook(){
   if(WALL.page)root.style.setProperty('--glass',(100-glassPct())+'%');else root.style.removeProperty('--glass');
   document.body.classList.toggle('has-wall',!!WALL.page);
 }
-function glassPct(){var g=+UI.glass;return g>=0&&g<=100?Math.round(g):12;}
+function glassPct(){var g=+S.settings.glass;return g>=0&&g<=100?Math.round(g):12;}
 function setDark(m){UI.dark=m;saveUI();renderAll();}
 function wallKey(w){return 'wall.'+w;}
+/* Each picture in this browser: {blob (or null when removed), at (when it was set), up (true once the account has it)}.
+   An older bare Blob counts as at 0. The account keeps the picture in users/{uid}/walls/{w} and a stamp
+   {at} or {at, none} in S.settings.walls, which travels with the normal sync and tells other devices to fetch. */
+var LW={hero:{blob:null,at:0,up:true},page:{blob:null,at:0,up:true}},WSYNC={hero:null,page:null},WTRY={hero:0,page:0},WBUSY={},WTIMER={};
+var wallsReady=Promise.resolve();
+function wallRec(v){if(v instanceof Blob)return {blob:v,at:0,up:false};if(v&&typeof v==='object')return {blob:v.blob instanceof Blob?v.blob:null,at:+v.at||0,up:!!v.up};return {blob:null,at:0,up:true};}
 function setWallUrl(w,blob){
   if(WALL[w])URL.revokeObjectURL(WALL[w]);
   WALL[w]=blob instanceof Blob?URL.createObjectURL(blob):null;
   applyLook();if(UI.view==='settings')renderLook();
 }
-function loadWalls(){['hero','page'].forEach(function(w){kvGet(wallKey(w)).then(function(b){if(b)setWallUrl(w,b);}).catch(function(){});});}
-function shrinkImage(file,maxEdge){
-  return createImageBitmap(file).then(function(bm){
-    var k=Math.min(1,maxEdge/Math.max(bm.width,bm.height)),w=Math.round(bm.width*k),h=Math.round(bm.height*k);
+function loadWalls(){
+  wallsReady=Promise.all(['hero','page'].map(function(w){
+    return kvGet(wallKey(w)).then(function(v){LW[w]=wallRec(v);if(LW[w].blob)setWallUrl(w,LW[w].blob);}).catch(function(){});
+  }));
+  return wallsReady;
+}
+function keepWall(w,rec){LW[w]=rec;return kvSet(wallKey(w),rec);}
+function encodeJpeg(src,edge,q){
+  return createImageBitmap(src).then(function(bm){
+    var k=Math.min(1,edge/Math.max(bm.width,bm.height)),w=Math.round(bm.width*k),h=Math.round(bm.height*k);
     var c=document.createElement('canvas'),g;c.width=w;c.height=h;g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(bm,0,0,w,h);if(bm.close)bm.close();
-    return new Promise(function(res,rej){c.toBlob(function(b){if(b)res(b);else rej(new Error('the picture could not be read'));},'image/jpeg',0.86);});
+    return new Promise(function(res,rej){c.toBlob(function(b){if(b)res(b);else rej(new Error('the picture could not be read'));},'image/jpeg',q);});
   },function(){throw new Error('this browser cannot open that picture - try a JPG or PNG');});
+}
+/* An account document holds at most 1 MB, so a picture is made smaller until it is under 850 KB */
+var WALLMAX=850000;
+function shrinkImage(file,maxEdge){
+  var steps=[[maxEdge,0.86],[maxEdge,0.78],[Math.min(maxEdge,2000),0.78],[1700,0.76],[1400,0.74],[1200,0.72],[1000,0.7]],i=0;
+  var next=function(){
+    var st=steps[i++];
+    return encodeJpeg(file,st[0],st[1]).then(function(b){return b.size<=WALLMAX||i>=steps.length?b:next();});
+  };
+  return next();
+}
+function fitWall(blob){return blob.size<=WALLMAX?Promise.resolve(blob):shrinkImage(blob,2400);}
+/* a picture picked, removed or wiped on this device */
+function wallSet(w,blob){
+  var rec={blob:blob||null,at:Date.now(),up:false};
+  S.settings.walls=S.settings.walls||{};
+  S.settings.walls[w]=blob?{at:rec.at}:{at:rec.at,none:1};
+  setWallUrl(w,rec.blob);
+  return keepWall(w,rec).then(function(){save();return wallPush(w);});
 }
 function pickWall(w){
   var inp=document.createElement('input');inp.type='file';inp.accept='image/*';
@@ -3142,18 +3176,78 @@ function pickWall(w){
     var f=inp.files[0];if(!f)return;
     if(!/^image\//.test(f.type)){toast('That file is not a picture.');return;}
     shrinkImage(f,w==='hero'?1800:2400).then(function(b){
-      return kvSet(wallKey(w),b).then(function(){setWallUrl(w,b);toast(w==='hero'?'Quote picture added.':'Wallpaper added.');});
+      return wallSet(w,b).then(function(){toast((w==='hero'?'Quote picture added':'Wallpaper added')+(cloudOn()?(WSYNC[w]&&WSYNC[w].ok?' and saved to your account.':'. It is not in your account yet - see Settings.'):'.'));});
     }).catch(function(e){toast('Could not add that picture: '+((e&&e.message)||'unknown error'));});
   };
   inp.click();
 }
-function removeWall(w){kvSet(wallKey(w),null).then(function(){setWallUrl(w,null);toast('Picture removed.');}).catch(function(e){toast('Could not remove the picture: '+((e&&e.message)||'unknown error'));});}
+function removeWall(w){wallSet(w,null).then(function(){toast('Picture removed'+(cloudOn()?' on all your devices.':'.'));}).catch(function(e){toast('Could not remove the picture: '+((e&&e.message)||'unknown error'));});}
+function wallUrl(w){return fsBase()+'/users/'+CLOUD.user.uid+'/walls/'+w;}
+function wallErr(x){return x.status===403?'your account does not allow pictures yet':fbErr(x);}
+function wallMark(w,o){WSYNC[w]=o;if(UI.view==='settings'){var el=$('#lkSync-'+w);if(el)el.outerHTML=wallLine(w);}}
+function wallLine(w){
+  if(!cloudOn())return '<div class="lk-sync" id="lkSync-'+w+'">'+(LW[w].blob?'In this browser only - sign in to have it on all your devices':'')+'</div>';
+  var o=WSYNC[w];
+  return '<div class="lk-sync" id="lkSync-'+w+'">'+(!o?'':o.busy?statusHtml('info','Syncing...'):o.ok?(LW[w].blob?statusHtml('good','On all your devices'):''):statusHtml('bad','Not synced: '+o.err))+'</div>';
+}
+/* send this device's picture (or its removal) to the account */
+function wallPush(w){
+  if(!cloudOn())return Promise.resolve(false);
+  var rec=LW[w],at=rec.at;
+  wallMark(w,{busy:1});
+  var p=rec.blob?fitWall(rec.blob).then(function(b){
+    return new Response(b).arrayBuffer().then(function(buf){
+      return fsCall('PATCH',wallUrl(w),{fields:{data:{bytesValue:b64(new Uint8Array(buf))},at:{integerValue:String(at)},type:{stringValue:'image/jpeg'}}});
+    });
+  }):fsCall('DELETE',wallUrl(w));
+  return p.then(function(x){
+    if(!x.ok&&!(x.status===404&&!rec.blob)){wallMark(w,{err:wallErr(x)});return false;}
+    if(LW[w].at===at){LW[w].up=true;kvSet(wallKey(w),LW[w]).catch(function(){});}
+    wallMark(w,{ok:1,ts:Date.now()});return true;
+  },function(e){wallMark(w,{err:(e&&e.message)||'could not reach your account'});return false;});
+}
+/* fetch the account's picture; a missing or older one means it is still on its way, so try again shortly */
+function wallFetch(w,st){
+  wallMark(w,{busy:1});
+  return fsCall('GET',wallUrl(w)).then(function(x){
+    var f=x.ok&&x.j.fields||{},at=+(f.at&&f.at.integerValue)||0;
+    if(x.ok&&f.data&&f.data.bytesValue&&at>=st.at){
+      var bin=atob(f.data.bytesValue),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+      var rec={blob:new Blob([u],{type:'image/jpeg'}),at:at,up:true};WTRY[w]=0;
+      return keepWall(w,rec).then(function(){setWallUrl(w,rec.blob);wallMark(w,{ok:1,ts:Date.now()});});
+    }
+    if(x.ok||x.status===404){wallMark(w,null);return wallRetry(w);}   // absence: the other device has not finished sending it yet
+    wallMark(w,{err:wallErr(x)});                                       // failure: keep what this browser has
+  },function(e){wallMark(w,{err:(e&&e.message)||'could not reach your account'});});
+}
+function wallRetry(w){if(WTRY[w]>=8)return;WTRY[w]++;clearTimeout(WTIMER[w]);WTIMER[w]=setTimeout(function(){syncWalls();},Math.min(60000,5000*WTRY[w]));}
+/* make this device and the account agree on both pictures; the newer one wins */
+function syncWalls(){
+  if(!cloudOn()||loadError)return Promise.resolve();
+  return wallsReady.then(function(){return Promise.all(['hero','page'].map(function(w){
+    if(WBUSY[w])return;WBUSY[w]=1;
+    var done=function(){WBUSY[w]=0;};
+    var st=(S.settings.walls||{})[w],loc=LW[w],p;
+    if(st&&st.at>loc.at){
+      if(st.none)p=keepWall(w,{blob:null,at:st.at,up:true}).then(function(){setWallUrl(w,null);wallMark(w,{ok:1});});
+      else p=wallFetch(w,st);
+    } else if(loc.blob&&loc.at===0){
+      loc.at=Date.now();S.settings.walls=S.settings.walls||{};S.settings.walls[w]={at:loc.at};save();   // a picture from before syncing existed
+      p=keepWall(w,loc).then(function(){return wallPush(w);});
+    } else if(loc.at>0&&(!st||loc.at>st.at)){
+      S.settings.walls=S.settings.walls||{};S.settings.walls[w]=loc.blob?{at:loc.at}:{at:loc.at,none:1};save();
+      p=wallPush(w);
+    } else if(!loc.up&&(loc.blob||loc.at>0))p=wallPush(w);
+    else if(loc.blob&&!WSYNC[w])wallMark(w,{ok:1});
+    return Promise.resolve(p).then(done,done);
+  }));});
+}
 function renderLook(){
   var box=$('#setLook');if(!box)return;
   var s=S.settings,th=s.theme||{},t=curTheme(),mode=UI.dark||'light',pre=th.preset||'pine';
   var sw=function(id){var p=THEMES[id];return '<button class="lk-sw'+(pre===id?' on':'')+'" data-lk-preset="'+id+'"><i style="background:conic-gradient('+p.frame+' 0 33.3%,'+p.core+' 0 66.6%,'+p.brk+' 0)"></i>'+p.name+'</button>';};
   var pic=function(w,label){var u=WALL[w];return '<div class="lk-sec"><h3>'+label+'</h3><div class="lk-prev'+(u?' has':'')+'" id="lkPrev-'+w+'"'+(u?' style="background-image:url(&quot;'+u+'&quot;)"':'')+'>'+(u?'':ICON.image+'No picture')+'</div>'+
-    '<div class="lk-acts"><button class="btn sm" data-lk-wall="'+w+'">'+ICON.ul+(u?'Change':'Choose picture')+'</button>'+(u?'<button class="btn sm" data-lk-unwall="'+w+'">Remove</button>':'')+'</div></div>';};
+    '<div class="lk-acts"><button class="btn sm" data-lk-wall="'+w+'">'+ICON.ul+(u?'Change':'Choose picture')+'</button>'+(u?'<button class="btn sm" data-lk-unwall="'+w+'">Remove</button>':'')+'</div>'+wallLine(w)+'</div>';};
   box.innerHTML='<div class="card-head"><h2>Home page</h2></div>'+
     '<label class="check"><input type="checkbox" id="keepDoneChk"'+(s.keepDone?' checked':'')+'><span><b>Keep completed tasks on Today</b><br><span class="small muted">Off: Today shows only the tasks completed this shift, and older ones are in History. On: every completed task stays under Completed, with the date it was done.</span></span></label>'+
     '<div class="lk-grid">'+
@@ -3166,7 +3260,7 @@ function renderLook(){
         '<input type="range" id="lkGlass" min="0" max="100" step="1" value="'+glassPct()+'" aria-label="Section transparency"'+(WALL.page?'':' disabled')+'>'+
         '<div class="lk-scale"><span>Solid</span><span>'+(WALL.page?'See-through':'Add a page wallpaper first')+'</span></div></div>'+
     '</div>'+
-    '<p class="small muted" style="margin:14px 0 0">Pictures and dark mode stay on this device. Colours are saved with your data.</p>';
+    '<p class="small muted" style="margin:14px 0 0">Pictures, colours and transparency follow your account to every device when you are signed in. Dark mode is set on each device.</p>';
   $('#keepDoneChk').onchange=function(e){s.keepDone=e.target.checked;audit('Keep completed tasks on Today: '+(s.keepDone?'on':'off'));save();toast(s.keepDone?'Completed tasks now stay on Today.':'Today shows only this shift\'s completed tasks again.');};
   $$('[data-lk-mode]',box).forEach(function(b){b.onclick=function(){setDark(b.getAttribute('data-lk-mode'));};});
   $$('[data-lk-preset]',box).forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-lk-preset');s.theme={preset:id};audit('Colours: '+THEMES[id].name);save();renderAll();};});
@@ -3175,8 +3269,8 @@ function renderLook(){
     inp.onchange=function(){inp.oninput();audit('Colours: your own');save();renderAll();};
   });
   var gl=$('#lkGlass');
-  gl.oninput=function(){UI.glass=+gl.value;$('#lkGlassV').textContent=gl.value+'%';applyLook();};
-  gl.onchange=function(){gl.oninput();saveUI();};
+  gl.oninput=function(){s.glass=+gl.value;$('#lkGlassV').textContent=gl.value+'%';applyLook();};
+  gl.onchange=function(){gl.oninput();audit('Section transparency: '+gl.value+'%');save();};
   $$('[data-lk-wall]',box).forEach(function(b){b.onclick=function(){pickWall(b.getAttribute('data-lk-wall'));};});
   $$('[data-lk-unwall]',box).forEach(function(b){b.onclick=function(){removeWall(b.getAttribute('data-lk-unwall'));};});
 }
@@ -3485,6 +3579,7 @@ function adopt(c,msg){
   CLOUD.applying=false;
   CLOUD.ut=c.ut;CLOUD.dirty=false;CLOUD.lastSync=Date.now();CLOUD.err='';authStore();
   renderAll();if(msg)toast(msg);
+  syncWalls();
 }
 function hasData(d){return (d.todos||[]).length>0||(d.notes||[]).length>0||Object.keys(d.days||{}).some(function(k){var x=d.days[k];return x.segments.length||x.entries.length||x.adjust.length;});}
 function dataSummary(d){
@@ -3527,7 +3622,7 @@ function cloudFirstSync(){
     if(!hasData(S)||JSON.stringify(c.data)===JSON.stringify(S)){adopt(c,'Signed in. Your data from your account is loaded.');return;}
     if(!hasData(c.data)){CLOUD.ut=c.ut;CLOUD.dirty=true;authStore();return cloudPush().then(function(ok){if(ok)toast('Signed in. Your data is now saved to your account.');});}
     return cloudConflict(c,true);
-  },function(e){CLOUD.busy=false;cloudFail(e);});
+  },function(e){CLOUD.busy=false;cloudFail(e);}).then(function(){syncWalls();});
 }
 
 /* ---- sign in / out ---- */
@@ -3665,7 +3760,7 @@ function cloudBoot(){
     CLOUD.cfg=x.j;MU_YT=!!x.j.ytSearch;muRender();
     renderTop();renderAccount();
     if(authHandoff)return useHandoff();
-    if(CLOUD.cfg.cloud&&CLOUD.user)return cloudPull();
+    if(CLOUD.cfg.cloud&&CLOUD.user)return cloudPull().then(function(){syncWalls();});
   }).catch(function(){CLOUD.cfg=null;renderTop();renderAccount();if(authHandoff&&authHandoff.error)toast(authHandoff.error);});
   document.addEventListener('visibilitychange',function(){
     if(!cloudOn())return;
@@ -3917,6 +4012,7 @@ function boot(){
   loadUI();
   UI.boardDay=null;
   loadLocal();
+  if(typeof UI.glass==='number'){if(S.settings.glass===12&&UI.glass!==12)S.settings.glass=UI.glass;delete UI.glass;saveUI();}   // 18 Oct: transparency moved from this device into the synced settings
   applyLook();
   loadWalls();
   start();
