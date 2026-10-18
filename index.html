@@ -1142,7 +1142,7 @@ function defaults(){
     settings:{name:'',shiftMin:540,breakMin:60,target:100,focusMin:90,breakAlertMin:30,autoCore:false,gapMin:20,idleDetect:false,idleMin:10,autoFolder:false,gapAsk:false,pomoMin:1,askNote:false,keepDone:false,theme:{preset:'pine'},myQuote:null,quoteMode:'auto',glass:12,walls:{}},
     reasons:{diverted:['Meeting','Training','Emails / reading','Meal','Coaching / 1-2-1','Other'],downtime:['System issue','Fire drill','Power / internet','Waiting on others','Other']},
     tasks:[],   // the old counted-units tasks; kept empty so older backups still load
-    todos:[],   // the to-do list on Today: {id,text,created,done}, repeating ones also {rep,due,next}
+    todos:[],   // the to-do list on Today: {id,text,created,done,day}, repeating ones also {rep,due,next}
     notes:[],   // the Notes card on Today: {id,text,created,updated,pin}
     days:{}, activeDay:null, audit:[],
     pomo:pomoDefaults()
@@ -2041,7 +2041,7 @@ function tickTodo(id,on){
   var t=todoById(id);if(!t)return;
   if(!on){reopenTodo(t);afterChange();return;}
   var o=curSeg();if(o&&o.state==='core'&&o.task===id)unfocusTask(true,true);   // finished: later Focus time no longer counts for it
-  t.done=Date.now();
+  t.done=Date.now();t.day=S.activeDay||dayKey(t.done);   // counts for the running shift, even after midnight
   var n=null;
   if(t.rep&&!t.next){   // a repeating task: the next one waits for its day
     var tk=todayKey();
@@ -2058,7 +2058,7 @@ function reopenTodo(t){
     Object.keys(S.days).forEach(function(k){S.days[k].segments.forEach(function(s){if(s.task===n.id)s.task=t.id;});});
     S.todos.splice(S.todos.indexOf(n),1);
   }else if(n)t.rep=null;   // the next one is done as well: this one comes back as a one-off
-  t.done=null;delete t.next;
+  t.done=null;delete t.next;delete t.day;
 }
 function delTodo(id){
   var i=S.todos.indexOf(todoById(id));if(i<0)return;
@@ -2125,7 +2125,20 @@ function shiftCut(){
   var d=S.activeDay&&S.days[S.activeDay];
   return (d&&(d.shiftStart||d.start))||keyDate(todayKey()).getTime();
 }
-function todosDoneOn(k){return S.todos.filter(function(t){return t.done&&dayKey(t.done)===k;}).sort(function(a,b){return a.done-b.done;});}
+/* the shift a finished task counts for: the one running when it was ticked, so a shift that runs past midnight keeps its tasks.
+   Tasks ticked before this was stored are matched to the shift whose time span holds the tick, else to the calendar day */
+function doneDay(t){
+  if(t.day)return t.day;
+  var ks=Object.keys(S.days).sort(),now=Date.now();
+  for(var i=ks.length-1;i>=0;i--){
+    var d=S.days[ks[i]],sg=d.segments,last=sg.length?sg[sg.length-1]:null;
+    if(!d.start)continue;
+    var e=S.activeDay===ks[i]?now:(d.ended||(last&&(last.end==null?now:last.end))||d.start);
+    if(t.done>=d.start&&t.done<=e)return ks[i];
+  }
+  return dayKey(t.done);
+}
+function todosDoneOn(k){return S.todos.filter(function(t){return t.done&&doneDay(t)===k;}).sort(function(a,b){return a.done-b.done;});}
 
 /* The newest ended shift that can still be resumed: today's, or one that ended less than 6 hours ago (past midnight) */
 function lastEnded(){
