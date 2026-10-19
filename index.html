@@ -1165,6 +1165,7 @@ function migrate(d){
   if(!d.settings.manualStart){d.settings.autoCore=false;d.settings.manualStart=1;}  /* 2026-09-25: shift starts only on Start */
   if(!d.settings.pomoMin){d.pomo.cfg.show=false;d.settings.pomoMin=1;}  /* 2026-10-13: the Pomodoro starts minimised, once for everyone */
   if(!d.settings.noteOff){d.settings.askNote=false;d.settings.noteOff=1;}  /* 2026-10-18: Focus starts at once by default; the note box is a setting */
+  if(!d.settings.repShift){repairRepeats(d);d.settings.repShift=1;}  /* 2026-10-19: repeats follow the shift, not the calendar date */
   return d;
 }
 function loadLocal(){
@@ -1998,8 +1999,10 @@ function editSessionNote(k,idx){
 /* ---- tasks: a to-do list on Today. Ticking one moves it to Completed. ---- */
 function todoById(id){for(var i=0;i<S.todos.length;i++)if(S.todos[i].id===id)return S.todos[i];return null;}
 /* repeating tasks: t.rep={k:'daily'|'weekdays'|'weekly'|'monthly', days:[0-6] for weekly, dom:1-31 for monthly};
-   t.due = the day it shows in To do. Ticking one completes it and makes the next one, due on the next fitting day. */
-var REPK=['once','daily','weekdays','weekly','monthly'],REPL={once:'Once',daily:'Daily',weekdays:'Weekdays',weekly:'Weekly',monthly:'Monthly'};
+   t.due = the shift day it shows in To do (a shift that runs past midnight keeps its own day).
+   Ticking one completes it and makes the next one: 'daily' comes back in the next shift (t.after = the shift it waits out),
+   the others on the next fitting shift day. */
+var REPK=['once','daily','weekdays','weekly','monthly'],REPL={once:'Once',daily:'Every shift',weekdays:'Weekdays',weekly:'Weekly',monthly:'Monthly'};
 var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function repFits(r,k){
   var d=keyDate(k),w=d.getDay();
@@ -2012,7 +2015,7 @@ function repFits(r,k){
 function repNext(r,k){for(var i=1;i<=400;i++){var x=shiftKey(k,i);if(repFits(r,x))return x;}return shiftKey(k,1);}
 function repFirst(r,k){return repFits(r,k)?k:repNext(r,k);}
 function repMake(kind,k){
-  var d=keyDate(k||todayKey());
+  var d=keyDate(k||workKey());
   if(kind==='daily'||kind==='weekdays')return {k:kind};
   if(kind==='weekly')return {k:kind,days:[d.getDay()]};
   if(kind==='monthly')return {k:kind,dom:d.getDate()};
@@ -2028,13 +2031,17 @@ function repLabel(r){
 function repTag(t){return t.rep?' <span class="rep" title="Repeats: '+esc(repLabel(t.rep))+'">'+ICON.repeat+esc(repLabel(t.rep))+'</span>':'';}
 function doneWhen(ts,full){return fmtDate(dayKey(ts),full?{weekday:'long',day:'numeric',month:'long',year:'numeric'}:{weekday:'short',day:'numeric',month:'short'})+', '+fmtClock(ts);}
 function shortDay(k){return k===shiftKey(todayKey(),1)?'Tomorrow':fmtDate(k,{weekday:'short',day:'numeric',month:'short'});}
-function dueNow(t){return !t.done&&(!t.due||t.due<=todayKey());}
+/* a repeat ticked in this shift waits for the next one. Off shift it keeps waiting while Start shift would only resume
+   (same day, or ended under 6 h ago past midnight); after that the next press is a new shift, so it shows */
+function repWait(t){return !!t.after&&t.after===shiftCut()&&(!!S.activeDay||!!lastEnded());}
+function dueNow(t){return !t.done&&(!t.due||t.due<=workKey())&&!repWait(t);}
+function upLabel(t){return repWait(t)||t.due<=todayKey()?'Next shift':shortDay(t.due);}
 function addTodo(text,kind){
   text=String(text||'').trim().slice(0,120);if(!text)return null;
   var t={id:uid(),text:text,created:Date.now(),done:null},r=repMake(kind);
-  if(r){t.rep=r;t.due=repFirst(r,todayKey());}
+  if(r){t.rep=r;t.due=repFirst(r,workKey());}
   S.todos.push(t);afterChange();
-  if(t.due&&t.due>todayKey())toast('Added. It shows up in To do on '+shortDay(t.due)+'.');
+  if(t.due&&t.due>workKey())toast('Added. It shows up in To do on '+shortDay(t.due)+'.');
   return t;
 }
 function tickTodo(id,on){
@@ -2043,13 +2050,15 @@ function tickTodo(id,on){
   var o=curSeg();if(o&&o.state==='core'&&o.task===id)unfocusTask(true,true);   // finished: later Focus time no longer counts for it
   t.done=Date.now();t.day=S.activeDay||dayKey(t.done);   // counts for the running shift, even after midnight
   var n=null;
-  if(t.rep&&!t.next){   // a repeating task: the next one waits for its day
-    var tk=todayKey();
-    n={id:uid(),text:t.text,created:Date.now(),done:null,rep:JSON.parse(JSON.stringify(t.rep)),due:repNext(t.rep,t.due&&t.due>tk?t.due:tk)};
+  if(t.rep&&!t.next){   // a repeating task: the next one waits for the next shift (daily) or its next shift day
+    var tk=workKey(),from=t.due&&t.due>tk?t.due:tk;
+    var shift=t.rep.k==='daily'&&(S.activeDay||lastEnded());   // ticked off shift with no shift to resume: back tomorrow
+    n={id:uid(),text:t.text,created:Date.now(),done:null,rep:JSON.parse(JSON.stringify(t.rep)),due:shift?from:repNext(t.rep,from)};
+    if(shift)n.after=shiftCut();
     S.todos.splice(S.todos.indexOf(t),0,n);t.next=n.id;
   }
   afterChange();
-  toast('Done: '+t.text+(n?'. Next: '+shortDay(n.due):''),function(){var x=todoById(id);if(x){reopenTodo(x);afterChange();}});
+  toast('Done: '+t.text+(n?'. Next: '+(n.after?'next shift':shortDay(n.due)):''),function(){var x=todoById(id);if(x){reopenTodo(x);afterChange();}});
 }
 /* back to To do. A repeating task takes back the place of the next one it made (Focus time moves with it) */
 function reopenTodo(t){
@@ -2120,23 +2129,36 @@ function todoMinutes(){
   return m;
 }
 /* the start of the current (or last) shift: Today shows only tasks completed since then */
-function shiftCut(){
-  if(S.shiftAt)return S.shiftAt;
-  var d=S.activeDay&&S.days[S.activeDay];
+function shiftCut(s){
+  s=s||S;
+  if(s.shiftAt)return s.shiftAt;
+  var d=s.activeDay&&s.days[s.activeDay];
   return (d&&(d.shiftStart||d.start))||keyDate(todayKey()).getTime();
 }
 /* the shift a finished task counts for: the one running when it was ticked, so a shift that runs past midnight keeps its tasks.
    Tasks ticked before this was stored are matched to the shift whose time span holds the tick, else to the calendar day */
-function doneDay(t){
+function doneDay(t,s){
   if(t.day)return t.day;
-  var ks=Object.keys(S.days).sort(),now=Date.now();
+  s=s||S;
+  var ks=Object.keys(s.days).sort(),now=Date.now();
   for(var i=ks.length-1;i>=0;i--){
-    var d=S.days[ks[i]],sg=d.segments,last=sg.length?sg[sg.length-1]:null;
+    var d=s.days[ks[i]],sg=d.segments,last=sg.length?sg[sg.length-1]:null;
     if(!d.start)continue;
-    var e=S.activeDay===ks[i]?now:(d.ended||(last&&(last.end==null?now:last.end))||d.start);
+    var e=s.activeDay===ks[i]?now:(d.ended||(last&&(last.end==null?now:last.end))||d.start);
     if(t.done>=d.start&&t.done<=e)return ks[i];
   }
   return dayKey(t.done);
+}
+/* once, on load: repeats made before 19 Oct were dated from the calendar day of the tick, so one ticked after midnight
+   in a late shift skipped a day. Bring each waiting one forward to where the shift rule puts it (never later). */
+function repairRepeats(s){
+  var by={},cut=shiftCut(s);
+  s.todos.forEach(function(t){by[t.id]=t;});
+  s.todos.forEach(function(t){
+    var n=t.done&&t.rep&&t.next&&by[t.next];if(!n||n.done||!n.rep||!n.due)return;
+    var dd=doneDay(t,s),from=t.due&&t.due>dd?t.due:dd,want=n.rep.k==='daily'?from:repNext(n.rep,from);
+    if(want<n.due){n.due=want;if(n.rep.k==='daily'&&t.done>=cut)n.after=cut;}
+  });
 }
 function todosDoneOn(k){return S.todos.filter(function(t){return t.done&&doneDay(t)===k;}).sort(function(a,b){return a.done-b.done;});}
 
@@ -2517,7 +2539,7 @@ function renderTodos(){
       '<input type="checkbox" data-todo-tick="'+t.id+'"'+(t.done?' checked':'')+' title="'+(t.done?'Move back to To do':up?'Mark as done early':'Mark as done')+'">'+
       '<span class="tx"><button class="ht-tx" data-ht-edit="'+t.id+'" title="Edit this task">'+esc(t.text)+'</button>'+repTag(t)+'</span>'+
       (m>=0.5?'<span class="tm">'+fmtM(m)+'</span>':'')+
-      (up?'<span class="tm">'+esc(shortDay(t.due))+'</span>':
+      (up?'<span class="tm">'+esc(upLabel(t))+'</span>':
        t.done?'<span class="tm" title="Completed '+esc(doneWhen(t.done,true))+'">'+esc(doneWhen(t.done))+'</span>':
         (t.id===cur?'<span class="tag live-tag-sm">focusing</span><button class="btn sm" data-todo-unfocus title="Stop working on this task. Focus keeps running.">Unfocus</button>':'<button class="btn sm" data-todo-focus="'+t.id+'" title="Start Focus on this task">'+ICON.play+'Focus</button>'))+
       '<button class="x" data-todo-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button></li>';
@@ -2526,7 +2548,7 @@ function renderTodos(){
     '<form class="todo-add" id="todoForm"><input class="inp" id="todoNew" maxlength="120" placeholder="Add a task, e.g. Finish the slides" autocomplete="off">'+
       '<select class="inp" id="todoRep" title="Repeat this task?" aria-label="Repeat">'+REPK.map(function(x){return '<option value="'+x+'"'+(x===repPick?' selected':'')+'>'+REPL[x]+'</option>';}).join('')+'</select>'+
       '<button class="btn primary" type="submit">Add</button></form>'+
-    (open.length?'<ul class="todo-list">'+open.map(row).join('')+'</ul>':'<div class="empty" style="padding:10px">'+(S.todos.length?(later.length?'Nothing due today. Add a task above.':'All done. Add the next one above.'):'No tasks yet. Add what you plan to do today, then tick each one off.')+'</div>')+
+    (open.length?'<ul class="todo-list">'+open.map(row).join('')+'</ul>':'<div class="empty" style="padding:10px">'+(S.todos.length?(later.length?'Nothing due this shift. Add a task above.':'All done. Add the next one above.'):'No tasks yet. Add what you plan to do today, then tick each one off.')+'</div>')+
     (later.length?'<div class="todo-sub"><button class="todo-fold" data-todo-later aria-expanded="'+(UI.todoLater?'true':'false')+'" title="'+(UI.todoLater?'Hide':'Show')+' repeating tasks that are due later"><span class="chev"></span>Coming up ('+later.length+')</button></div>'+
       (UI.todoLater?'<ul class="todo-list">'+later.map(row).join('')+'</ul>':''):'')+
     (doneList.length||allDone?'<div class="todo-sub">'+
@@ -2820,7 +2842,7 @@ function htRows(){
 }
 function htEdit(id){
   var t=todoById(id);if(!t)return;
-  var r=t.rep||{},kind=t.rep?t.rep.k:'once',days=(r.days||[keyDate(todayKey()).getDay()]).slice(),dom=r.dom||keyDate(todayKey()).getDate();
+  var r=t.rep||{},kind=t.rep?t.rep.k:'once',days=(r.days||[keyDate(workKey()).getDay()]).slice(),dom=r.dom||keyDate(workKey()).getDate();
   var open=!t.done;   // only a task still to do can change how it repeats
   modal('<div class="modal-h"><h3>'+(open?'Edit task':'Rename task')+'</h3></div><div class="modal-b"><input class="inp" id="htName" maxlength="120" value="'+esc(t.text)+'">'+
     (open?'<label class="rep-l">Repeat<select class="inp" id="htRep">'+REPK.map(function(x){return '<option value="'+x+'"'+(x===kind?' selected':'')+'>'+REPL[x]+'</option>';}).join('')+'</select></label>'+
@@ -2844,8 +2866,9 @@ function htEdit(id){
       }
       var moved=false;
       if(sel&&JSON.stringify(nr)!==JSON.stringify(x.rep||null)){
-        if(nr){x.rep=nr;x.due=repFirst(nr,todayKey());moved=x.due>todayKey();}
+        if(nr){x.rep=nr;x.due=repFirst(nr,workKey());moved=x.due>workKey();}
         else{delete x.rep;delete x.due;}
+        delete x.after;
       }
       x.text=v;afterChange();closeModal();
       if(moved)toast('Saved. It shows up in To do on '+shortDay(x.due)+'.');
