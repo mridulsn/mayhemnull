@@ -955,6 +955,11 @@ body.has-wall.see-thru .card .btn,body.has-wall.see-thru .card .inp,body.has-wal
 .todo-grp{margin-top:6px}
 .todo-grp+.todo-grp{margin-top:14px}
 .todo-grp-h{display:flex;align-items:center;gap:2px;font-weight:700;font-size:calc(14px*var(--tz,1));color:var(--ink);padding:6px 2px 6px}
+button.todo-grp-h{width:100%;border:0;background:transparent;font-family:inherit;text-align:left;cursor:pointer;border-radius:6px 6px 0 0}
+button.todo-grp-h:hover{background:var(--bg)}
+.todo-grp-h .chev{display:inline-block;width:0;height:0;margin:0 7px 0 1px;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transform:rotate(90deg);transition:transform .15s;flex:none}
+.todo-grp.folded .todo-grp-h .chev{transform:none}
+.todo-grp.folded .todo-grp-h{opacity:.85}
 .todo-grp-h .n{margin-left:8px;font-size:calc(12px*var(--tz,1));font-weight:700;color:var(--ink2);background:var(--bg);border-radius:999px;padding:0 8px;line-height:20px}
 .todo-grp.tinted .todo-grp-h{border-bottom:2px solid var(--cc)}
 .todo-none{padding:8px 2px;font-size:calc(13px*var(--tz,1));color:var(--muted)}
@@ -1008,7 +1013,7 @@ body.has-wall.see-thru .card .btn,body.has-wall.see-thru .card .inp,body.has-wal
 .df-d.end.has::after{background:#fff}
 .df-f{display:flex;align-items:center;gap:10px;margin-top:10px}
 .df-hint{flex:1;font-size:calc(12.5px*var(--tz,1));color:var(--muted)}
-/* Day board: Tasks done box */
+/* Timesheet: Tasks done box */
 .kpi-done .kpi-label{display:flex;align-items:center;gap:6px}
 .kpi-done .kpi-label svg{width:14px;height:14px;color:var(--core)}
 .kpi-done.click{cursor:pointer}
@@ -1045,7 +1050,7 @@ body.has-wall.see-thru .card .btn,body.has-wall.see-thru .card .inp,body.has-wal
 @media (max-width:480px){.nn-form .inp.sm{width:100%}}
 .st-tag{margin-right:4px}
 .brk-row td{background:color-mix(in srgb,var(--break) 5%,transparent)}
-/* task progress in Your day */
+/* task progress in Progress */
 .pg{margin:2px 0 18px;padding:14px 16px;border-radius:14px;background:var(--bg)}
 body.has-wall .pg{background:color-mix(in srgb,var(--bg) 70%,transparent)}
 .pg-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
@@ -1068,6 +1073,44 @@ body.has-wall .pg{background:color-mix(in srgb,var(--bg) 70%,transparent)}
 .tl-done .chip{display:inline-flex;align-items:center;gap:6px;height:28px;font-weight:600}
 .tl-done .chip .pin,.legend i.pin{width:9px;height:9px;border-radius:2px;transform:rotate(45deg);background:var(--warn);display:inline-block}
 .tl-done .chip .num{font-weight:600}
+
+/* Round 2: Fonts table (Appearance) and the Guide page. A font, size or colour is applied only while its html class is set, so the defaults above are untouched. */
+html.ff-h .page-head h1,html.ff-h .card h2,html.ff-h .modal-h h3{font-family:var(--ff-h)}
+html.ff-s .page-head p,html.ff-s .card-head .sub,html.ff-s .lk-sec h3{font-family:var(--ff-s)}
+html.ff-t .todo .tx{font-family:var(--ff-t)}
+html.ff-n .note-item .nt,html.ff-n #noteNew,html.ff-n .note-edit{font-family:var(--ff-n)}
+html.ff-x body{font-family:var(--ff-x)}
+html.fz-h .page-head h1{font-size:calc(30px*var(--tz,1)*var(--fz-h))}
+html.fz-h .card h2{font-size:calc(18px*var(--tz,1)*var(--fz-h))}
+html.fz-h .modal-h h3{font-size:calc(21px*var(--tz,1)*var(--fz-h))}
+@media (max-width:760px){html.fz-h .page-head h1{font-size:calc(25px*var(--tz,1)*var(--fz-h))}}
+html.fz-s .page-head p{font-size:calc(15px*var(--tz,1)*var(--fz-s))}
+html.fz-s .card-head .sub{font-size:calc(13.5px*var(--tz,1)*var(--fz-s))}
+html.fz-s .lk-sec h3{font-size:calc(14px*var(--tz,1)*var(--fz-s))}
+html.fz-t .todo .tx{font-size:calc(15px*var(--tz,1)*var(--fz-t))}
+html.fz-n .note-item .nt{font-size:calc(15px*var(--tz,1)*var(--fz-n))}
+html.fz-n #noteNew,html.fz-n .note-edit{font-size:calc(15px*var(--tz,1)*var(--fz-n))}
+html.fc-h .page-head h1,html.fc-h .card h2,html.fc-h .modal-h h3{color:var(--fc-h)}
+html.fc-s .page-head p,html.fc-s .card-head .sub,html.fc-s .lk-sec h3{color:var(--fc-s)}
+html.fc-t .todo .tx{color:var(--fc-t)}
+html.fc-n .note-item .nt,html.fc-n #noteNew,html.fc-n .note-edit{color:var(--fc-n)}
+.card h2,.page-head h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:100%}
+.lk-grid .lk-sec.lk-fonts{grid-column:1/-1}
+.ft{display:grid;grid-template-columns:110px minmax(150px,1.2fr) auto auto;gap:8px 16px;align-items:center;justify-content:start}
+.ft-row{display:contents}
+.ft-hd{font-size:calc(12px*var(--tz,1));font-weight:700;color:var(--muted)}
+.ft-l{font-weight:650}
+.ft select.inp{height:34px;padding:0 8px}
+.ft .seg{justify-self:start}
+.guide{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-items:start}
+.guide .card{margin:0}
+.guide .card p{margin:0}
+.guide .card ul{margin:0;padding-left:18px}
+.guide .card li{margin:3px 0}
+.wl-h{display:flex;align-items:center;gap:12px}
+.wl-h h3{flex:1;margin:0}
+.wl-h .icon-btn{font-size:26px;line-height:1}
+@media (max-width:700px){.ft{grid-template-columns:minmax(0,1fr)}.ft-hd{display:none}.ft-l{margin-top:10px}}
 </style>
 <script>try{var u=JSON.parse(localStorage.getItem('focuspulse.ui')||'{}'),m=u.dark||'light';if(m==='dark'||(m==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.setAttribute('data-theme','dark');var tz={s:.92,l:1.12,xl:1.25}[u.textSize];if(tz)document.documentElement.style.setProperty('--tz',tz);}catch(e){}</script>
 </head>
@@ -1135,7 +1178,7 @@ body.has-wall .pg{background:color-mix(in srgb,var(--bg) 70%,transparent)}
 
     <!-- BOARD -->
     <section class="view" id="v-board"><div class="wrap">
-      <div class="page-head"><h1>Day board</h1><p>Everything logged on a day. Change a session's note, add or take away time, fix a block that was wrong, or undo an entry. Every change is recorded in the change log.</p></div>
+      <div class="page-head"><h1>Timesheet</h1><p>Everything logged on one day.</p></div>
       <div class="card" id="boardHead"></div>
       <div class="kpis" id="boardStats"></div>
       <div class="card" id="boardTasks"></div>
@@ -1145,21 +1188,27 @@ body.has-wall .pg{background:color-mix(in srgb,var(--bg) 70%,transparent)}
 
     <!-- HISTORY -->
     <section class="view" id="v-history"><div class="wrap">
-      <div class="page-head"><h1>History</h1><p>Look back day by day, pick one note and see all the time you have spent on it, or browse every task you have completed.</p></div>
+      <div class="page-head"><h1>History</h1><p>Look back by day, note or task.</p></div>
       <div><div class="tabs" id="histTabs"><button data-t="day">By day</button><button data-t="note">By note</button><button data-t="tasks">Tasks</button></div></div>
       <div id="histBody"></div>
     </div></section>
 
     <!-- INSIGHTS -->
     <section class="view" id="v-insights"><div class="wrap">
-      <div class="page-head"><h1>Insights</h1><p>What your own numbers say: where your focus goes, how long your sessions run, and when you focus best.</p></div>
+      <div class="page-head"><h1>Insights</h1><p>Where your focus goes, and when it is best.</p></div>
       <div><div class="tabs" id="insTabs"><button data-p="7">7 days</button><button data-p="30">30 days</button><button data-p="90">90 days</button><button data-p="all">All time</button></div></div>
       <div id="insBody" class="col"></div>
     </div></section>
 
+    <!-- GUIDE -->
+    <section class="view" id="v-guide"><div class="wrap">
+      <div class="page-head"><h1>Guide</h1><p>How MayhemNull works, in about a minute.</p></div>
+      <div class="guide" id="guideBody"></div>
+    </div></section>
+
     <!-- SETTINGS -->
     <section class="view" id="v-settings"><div class="wrap">
-      <div class="page-head"><h1>Settings</h1><p>Your shift, home page, look and data.</p></div>
+      <div class="page-head"><h1>Settings</h1><p>Shift, appearance and data.</p></div>
       <div class="card" id="setShift"></div>
       <div class="card" id="setLook"></div>
       <div class="card" id="setAccount" hidden></div>
@@ -1222,6 +1271,7 @@ var ICON={
   board:P+'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="M9 11h6M9 15h4"/></svg>',
   history:P+'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>',
   insights:P+'<path d="M5 20V11M12 20V5M19 20v-8M3 20h18"/></svg>',
+  guide:P+'<path d="M4 5a2 2 0 0 1 2-2h14v15H6a2 2 0 0 0-2 2V5z"/><path d="M4 20a2 2 0 0 0 2 1h14v-3"/><path d="M9 8h6"/></svg>',
   edit:P+'<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>',
   settings:P+'<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>',
   end:P+'<path d="M15 4h4v16h-4"/><path d="M10 16l4-4-4-4"/><path d="M14 12H4"/></svg>',
@@ -1249,10 +1299,11 @@ var ICON={
   image:P+'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>'
 };
 var NAV=[
-  {id:'today',label:'Today',icon:'today'},
-  {id:'board',label:'Day board',icon:'board'},
+  {id:'today',label:'Home',icon:'today'},
+  {id:'board',label:'Timesheet',icon:'board'},
   {id:'history',label:'History',icon:'history'},
   {id:'insights',label:'Insights',icon:'insights'},
+  {id:'guide',label:'Guide',icon:'guide'},
   {id:'settings',label:'Settings',icon:'settings'}
 ];
 var MOTIV=[
@@ -2001,8 +2052,8 @@ function pomoHistory(inPlace){
 }
 function renderSetPomo(){
   var box=$('#setPomo');if(!box)return;var c=S.pomo.cfg,td=pomoToday();
-  box.innerHTML='<div class="card-head"><h2>Pomodoro timer</h2><span class="sub">A focus timer above the status tiles on Today.</span></div>'+
-    '<label class="check"><input type="checkbox" id="pomoShow" '+(c.show?'checked':'')+'><span><b>Show the full timer bar on Today</b><br><span class="small muted">Off: it shrinks to a small timer icon in the greeting card, and keeps running. Now '+c.focus+' min study / '+c.brk+' min break. '+td.n+' done today.</span></span></label>';
+  box.innerHTML='<div class="card-head"><h2>Pomodoro timer</h2></div>'+
+    '<label class="check"><input type="checkbox" id="pomoShow" '+(c.show?'checked':'')+'><span><b>Show the full timer bar on Home</b><br><span class="small muted">Off: it shrinks to a small timer icon in the greeting card, and keeps running. Now '+c.focus+' min study / '+c.brk+' min break. '+td.n+' done today.</span></span></label>';
   $('#pomoShow').onchange=function(e){c.show=e.target.checked;save();renderPomo();renderSetPomo();};
 }
 
@@ -2482,7 +2533,7 @@ function manageCats(){
   modal('<div class="modal-h"><h3>Categories</h3></div><div class="modal-b">'+
     '<div id="catRows"></div>'+
     '<form class="cat-add" id="catAdd"><input class="inp" id="catNew" maxlength="30" placeholder="New category, e.g. Daily or Professional" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>'+
-    '<p class="small muted" style="margin:10px 0 0">Tasks in a category sit together on Today, in its colour. Pick the crossed circle for no colour.</p></div>'+
+    '<p class="small muted" style="margin:10px 0 0">Tasks in a category sit together on Home, in its colour. Pick the crossed circle for no colour.</p></div>'+
     '<div class="modal-f"><button class="btn primary" data-close>Done</button></div>',function(m){
     draw(m);
     $('#catAdd',m).onsubmit=function(e){
@@ -2712,7 +2763,7 @@ function enforce24h(){
   audit('Shift ended automatically 24 hours after it started ('+fmtDate(k)+' '+fmtClock(d.start)+')',k);
   save();
   if(S.settings.autoFolder) runAutoSave(k,false);
-  banner('warn','Your shift that started <b>'+esc(fmtDate(k))+' at '+fmtClock(d.start)+'</b> was never ended, so it was stopped automatically after 24 hours, at <b>'+fmtClock(cut)+'</b>. Correct the times on the Day board if needed.','Open that day',function(){UI.boardDay=k;go('board');});
+  banner('warn','Your shift that started <b>'+esc(fmtDate(k))+' at '+fmtClock(d.start)+'</b> was never ended, so it was stopped automatically after 24 hours, at <b>'+fmtClock(cut)+'</b>. Correct the times on the Timesheet if needed.','Open that day',function(){UI.boardDay=k;go('board');});
   renderAll();
   return true;
 }
@@ -2797,6 +2848,7 @@ function renderView(){
   else if(v==='board')renderBoard();
   else if(v==='history')renderHistory();
   else if(v==='insights')renderInsights();
+  else if(v==='guide')renderGuide();
   else if(v==='settings')renderSettings();
 }
 function renderAll(){applyLook();renderTop();renderView();}
@@ -2974,7 +3026,7 @@ function renderNudge(){
   syncStatusRow();
 }
 function renderKpis(){
-  if(!$('#kpis'))return;   // 18 Oct: the strip was removed from Today; Your day carries these numbers
+  if(!$('#kpis'))return;   // 18 Oct: the strip was removed from Today; Progress carries these numbers
   var day=viewDay(),t=totals(day),ss=sessions(day),S2=S.settings;
   var left=S2.shiftMin-t.logged,brkLeft=S2.breakMin-t['break'];
   var longest=ss.reduce(function(m,x){return Math.max(m,x.min);},0),tn=topNote(day);
@@ -3012,7 +3064,7 @@ function renderSessions(){
   var k=S.activeDay||todayKey(),card=$('#sessionsCard');
   var from=S.days[k]&&S.days[k].shiftStart||0;
   card.hidden=!S.activeDay&&!sessions(S.days[k]).length;   // nothing to show before the first session of the day
-  card.innerHTML='<div class="card-head"><h2>Activity</h2><span class="sub">'+(from?'This shift':'Today')+': Focus and Break. Tap a note to add or change it.</span></div>'+sessionsHtml(k,null,from,true);
+  card.innerHTML='<div class="card-head"><h2 data-tip="'+(from?'This shift':'Today')+': Focus and Break. Tap a note to add or change it.">Activity</h2></div>'+sessionsHtml(k,null,from,true);
 }
 function renderTodos(){
   var card=$('#todoCard');if(!card)return;
@@ -3047,8 +3099,9 @@ function renderTodos(){
     return S.cats.concat([null]).map(function(c){
       var id=c?c.id:'',list=open.filter(function(t){return catKey(t)===id;});
       if(!list.length&&!c)return '';
-      return '<div class="todo-grp'+(c&&okHex(c.color)?' tinted':'')+'"'+(c&&okHex(c.color)?' style="--cc:'+c.color+'"':'')+'><div class="todo-grp-h">'+(c?catDot(c):'')+'<span>'+(c?esc(c.name):'No category')+'</span><span class="n">'+list.length+'</span></div>'+
-        (list.length?'<ul class="todo-list">'+list.map(row).join('')+'</ul>':'<div class="todo-none">Nothing here</div>')+'</div>';
+      var fk=c?c.id:'_none',fold=!!(UI.catFold&&UI.catFold[fk]);   // a group can be folded away (per device)
+      return '<div class="todo-grp'+(c&&okHex(c.color)?' tinted':'')+(fold?' folded':'')+'"'+(c&&okHex(c.color)?' style="--cc:'+c.color+'"':'')+'><button type="button" class="todo-grp-h" data-cat-fold="'+fk+'" aria-expanded="'+!fold+'" title="'+(fold?'Show':'Hide')+' these tasks"><i class="chev"></i>'+(c?catDot(c):'')+'<span>'+(c?esc(c.name):'No category')+'</span><span class="n">'+list.length+'</span></button>'+
+        (fold?'':list.length?'<ul class="todo-list">'+list.map(row).join('')+'</ul>':'<div class="todo-none">Nothing here</div>')+'</div>';
     }).join('');
   };
   card.innerHTML='<div class="card-head"><h2>Tasks</h2><span class="sub">'+open.length+' to do &middot; '+doneNow.length+' done this shift</span><div class="right">'+
@@ -3140,7 +3193,7 @@ function timelineHtml(day,now,k){
 function renderTimeline(){
   var k=S.activeDay||todayKey(),day=viewDay(),lg=totals(day).logged,sm=S.settings.shiftMin;
   var shift=day&&day.segments.length?'<span class="shift-pill" title="Time on this shift, out of your shift length"><span class="l">Shift</span> <b>'+fmtM(lg)+'</b> / '+fmtM(sm)+(lg>sm?' <span class="over">+'+fmtM(lg-sm)+'</span>':'')+'</span>':'';
-  $('#timelineCard').innerHTML='<div class="card-head"><h2>Your day</h2>'+shift+'<span class="sub">Hover a block or a pin for details. Fix mistakes on the <button class="link" data-go="board">Day board</button>.</span></div>'+progressHtml()+timelineHtml(day,null,k);
+  $('#timelineCard').innerHTML='<div class="card-head"><h2 data-tip="Hover a block or a pin for details. Fix mistakes on the Timesheet.">Progress</h2>'+shift+'</div>'+progressHtml()+timelineHtml(day,null,k);
 }
 function streak(){
   var n=0,k=S.activeDay?shiftKey(S.activeDay,-1):shiftKey(todayKey(),S.days[todayKey()]&&S.days[todayKey()].ended?0:-1);
@@ -3205,11 +3258,11 @@ function renderBoard(){
   if($('#bDone')){$('#bDone').onclick=function(){histTasksOn(k);};$('#bDone').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();histTasksOn(k);}};}
 
   // this day's Focus sessions and their notes
-  $('#boardTasks').innerHTML='<div class="card-head"><h2>Sessions</h2><span class="sub">Tap a note to change it.</span></div>'+sessionsHtml(k);
+  $('#boardTasks').innerHTML='<div class="card-head"><h2 data-tip="Tap a note to change it.">Sessions</h2></div>'+sessionsHtml(k);
 
   // adjust time
   var stOpt=function(sel,blank){return '<option value="">'+blank+'</option>'+STATES.map(function(s){return '<option value="'+s+'"'+(s===sel?' selected':'')+'>'+SMETA[s].label+'</option>';}).join('');};
-  $('#adjTime').innerHTML='<div class="card-head"><h2>Adjust time</h2><span class="sub">Move minutes between Focus and Break. Pick "(nothing)" to add new time (forgot to start) or remove time.</span></div>'+
+  $('#adjTime').innerHTML='<div class="card-head"><h2 data-tip="Move minutes between Focus and Break. Pick &quot;(nothing)&quot; to add new time (forgot to start) or remove time.">Add or move time</h2></div>'+
     '<div class="form-row"><div class="field"><label>Take from</label><select class="inp" id="tFrom">'+stOpt('core','(nothing) - add new time')+'</select></div>'+
     '<div class="field"><label>Give to</label><select class="inp" id="tTo">'+stOpt('break','(nothing) - remove time')+'</select></div></div>'+
     '<div class="form-row"><div class="field"><label>Minutes</label><input class="inp num" id="tMin" type="number" min="1" max="720" placeholder="e.g. 15"></div>'+
@@ -3261,7 +3314,7 @@ function renderBoard(){
   };
   renderBoardLog(k);
 }
-/* Day board: the tasks completed in that day's shift - how many, the first few in their category colours, the rest in History */
+/* Timesheet: the tasks completed in that day's shift - how many, the first few in their category colours, the rest in History */
 function boardDoneHtml(k){
   var done=todosDoneOn(k),show=done.slice(0,3);
   var names=show.map(function(t){var c=catColor(t);return '<span class="kt'+(c?' tinted':'')+'"'+(c?' style="--cc:'+c+'"':'')+' title="'+esc(t.text+' - '+fmtClock(t.done))+'">'+esc(t.text)+'</span>';}).join('');
@@ -3301,18 +3354,18 @@ function renderBoardLog(k){
     }
     return '<tr><td class="num">'+fmtClock(a.ts)+'</td><td><span class="tag">'+(a.min>0?'Time added':'Time removed')+'</span></td><td><span class="tag"><i style="background:'+COLOR[a.state]+'"></i>'+SMETA[a.state].label+'</span>'+(a.reason?' <span class="muted small">'+esc(a.reason)+'</span>':'')+(a.note?' <span class="muted small">- '+esc(a.note)+'</span>':'')+'</td><td class="r num">'+(a.min>0?'+':'')+fmtM(a.min)+'</td><td class="r"><button class="icon-btn" data-del-a="'+a.id+'" title="Remove this adjustment">'+ICON.trash+'</button></td></tr>';
   }).join('');
-  $('#boardLog').innerHTML='<div class="card-head"><h2>Activity</h2><span class="sub">Newest first. Change a status block if it was logged wrong.</span></div>'+
+  $('#boardLog').innerHTML='<div class="card-head"><h2 data-tip="Newest first. Change a status block if it was logged wrong.">Log</h2></div>'+
     (html?'<div class="tbl-wrap"><table class="tbl"><tr><th>Time</th><th>Type</th><th>Detail</th><th class="r">Amount</th><th></th></tr>'+html+'</table></div>':'<div class="empty">Nothing logged on this day.</div>');
   $$('[data-reclass]').forEach(function(sel){sel.onchange=function(){
     var s=S.days[k].segments[+sel.getAttribute('data-reclass')],old=s.state;
-    // minutes taken out with Adjust time must still be covered, or the day total would silently grow
+    // minutes taken out with Add or move time must still be covered, or the day total would silently grow
     var left=rawMin(S.days[k],old)-((s.end==null?Date.now():s.end)-s.start)/60000;
-    if(left<-0.5){sel.value=old;toast('This block cannot change: '+Math.round(-left)+' min of '+SMETA[old].label+' on this day were moved or removed with Adjust time. Undo that first in the list below.');return;}
+    if(left<-0.5){sel.value=old;toast('This block cannot change: '+Math.round(-left)+' min of '+SMETA[old].label+' on this day were moved or removed with Add or move time. Undo that first in the list below.');return;}
     var to=sel.value,idx=+sel.getAttribute('data-reclass'),start=s.start;
     var commit=function(reason){
       var b=S.days[k]&&S.days[k].segments[idx];
       if(!b||b.start!==start||b.state!==old){renderBoardLog(k);return;}   // the day changed while the picker was open
-      if(rawMin(S.days[k],old)-((b.end==null?Date.now():b.end)-b.start)/60000<-0.5){renderBoardLog(k);toast('This block cannot change: time on this day was moved or removed with Adjust time meanwhile. Undo that first in the list below.');return;}
+      if(rawMin(S.days[k],old)-((b.end==null?Date.now():b.end)-b.start)/60000<-0.5){renderBoardLog(k);toast('This block cannot change: time on this day was moved or removed with Add or move time meanwhile. Undo that first in the list below.');return;}
       b.state=to;if(to!=='core')b.task=null;   // the note stays: Focus and Break both keep one
       audit('Changed '+fmtClock(b.start)+' block from '+SMETA[old].label+' to '+SMETA[to].label+(reason?' ('+reason+')':''),k);
       afterChange();toast('Block changed to '+SMETA[to].label+(reason?': '+reason:'')+'.');
@@ -3354,14 +3407,14 @@ function renderHistory(){
     return '<tr class="click" data-open="'+x.k+'"><td><b>'+esc(fmtDate(x.k,{weekday:'short',day:'numeric',month:'short'}))+'</b>'+(x.k===live?' <span class="small muted">(in progress)</span>':'')+'</td><td class="r num">'+fmtM(t.logged)+'</td><td class="r num"><b>'+fmtM(t.core)+'</b></td><td class="r num">'+fmtM(t['break'])+'</td><td class="r num">'+x.n+'</td><td class="r num">'+x.tasks+'</td><td>'+(x.top?esc(x.top):'<span class="muted">-</span>')+'</td></tr>';}).join('');
   $('#histBody').innerHTML='<div class="card"><div class="stats">'+stat(keys.length,'Days tracked')+stat(done.length?fmtM(sumF/done.length):'--','Average focus a day')+stat(fmtM(all.reduce(function(a,x){return a+x.t.core;},0)),'Focus in total')+stat(nS,'Sessions')+'</div>'+
     '<div class="tbl-wrap"><table class="tbl"><tr><th>Day</th><th class="r">Logged</th><th class="r">Focus</th><th class="r">Break</th><th class="r">Sessions</th><th class="r" title="Tasks completed in the shift of that day">Tasks</th><th>Most time on</th></tr>'+rows+'</table></div>'+
-    '<p class="small muted" style="margin:10px 0 0">Click a day to open it on the Day board.'+(live&&S.days[live]?' The average leaves out the day still in progress until you end the shift.':'')+'</p></div>';
+    '<p class="small muted" style="margin:10px 0 0">Click a day to open it on the Timesheet.'+(live&&S.days[live]?' The average leaves out the day still in progress until you end the shift.':'')+'</p></div>';
   $$('[data-open]').forEach(function(r){r.onclick=function(){UI.boardDay=r.getAttribute('data-open');go('board');};});
 }
 /* History > Tasks: every completed task with its date, searchable, filterable and sortable; rename, restore or remove */
 function histTasks(){
   var f=htState();
   var n=S.todos.filter(function(t){return t.done;}).length;
-  if(!n){$('#histBody').innerHTML='<div class="card"><div class="empty">No completed tasks yet. Tick a task on Today and it shows up here.</div></div>';return;}
+  if(!n){$('#histBody').innerHTML='<div class="card"><div class="empty">No completed tasks yet. Tick a task on Home and it shows up here.</div></div>';return;}
   $('#histBody').innerHTML='<div class="card"><div class="card-head"><h2>Completed tasks</h2><span class="sub" id="htCount"></span></div>'+
     fBar('ht',f)+'<div id="htRows"></div></div>';
   fWire('ht');
@@ -3546,20 +3599,20 @@ function renderSettings(){
   renderSetPomo();
   renderLook();
   $('#setShift').innerHTML='<div class="card-head"><h2>Shift</h2></div>'+
-    '<div class="form-row">'+fld('Your name','name','text',s.name)+fld('Shift length (hours)','shiftH','number',+(s.shiftMin/60).toFixed(2),'min="1" max="16" step="0.25"')+fld('Break allowance (min/day)','breakMin','number',s.breakMin,'min="0" max="240"')+'</div>'+
-    '<label class="check"><input type="checkbox" data-s="askNote" '+(s.askNote!==false?'checked':'')+'><span><b>Ask for a note when Focus starts</b><br><span class="small muted">Off: Focus starts at once. You can still add or change a note any time.</span></span></label>'+
-    '<label class="check"><input type="checkbox" data-s="autoCore" '+(s.autoCore?'checked':'')+'><span><b>Start Focus automatically when I open MayhemNull</b><br><span class="small muted">Off: nothing is timed until you press Start shift. On: Focus starts (with no note) when the page is on screen. Never restarts a shift you already ended today.</span></span></label>';
+    '<div class="form-row">'+fld('Name','name','text',s.name)+fld('Shift (hours)','shiftH','number',+(s.shiftMin/60).toFixed(2),'min="1" max="16" step="0.25"')+fld('Break (min/day)','breakMin','number',s.breakMin,'min="0" max="240"')+'</div>'+
+    '<label class="check"><input type="checkbox" data-s="askNote" '+(s.askNote!==false?'checked':'')+'><span><b data-tip="Off: Focus starts at once. You can still add or change a note any time.">Note prompt</b></span></label>'+
+    '<label class="check"><input type="checkbox" data-s="autoCore" '+(s.autoCore?'checked':'')+'><span><b data-tip="Off: nothing is timed until you press Start shift. On: Focus starts (with no note) when the page is on screen. Never restarts a shift you already ended today.">Auto-start</b></span></label>';
   $$('#setShift [data-s]').forEach(function(inp){
     inp.onchange=function(){
       var k=inp.getAttribute('data-s'),v=inp.type==='checkbox'?inp.checked:inp.value;
-      if(k==='name'){v=String(v).trim()||'You';}
+      if(k==='name'){v=String(v).trim()||'User X';}
       else if(k==='shiftH'){var h=+v;if(!(h>=1&&h<=16))return renderSettings();s.shiftMin=Math.round(h*60);audit('Shift length set to '+h+'h');save();renderTop();return;}
       else if(inp.type!=='checkbox'){v=+v;if(!(v>=0)||(k==='target'&&v<1))return renderSettings();}
       s[k]=v;audit('Setting '+k+' changed');save();renderTop();
       if(k==='idleDetect'){if(v)startIdle();else stopIdle();}
     };
   });
-  $('#setData').innerHTML='<div class="card-head"><h2>Your data</h2><span class="sub">'+(cloudOn()?'Kept in this browser and saved to your account'+(CLOUD.user&&CLOUD.user.name?' ('+esc(CLOUD.user.name)+')':'')+', so it follows you to other devices':'Kept in this browser')+(S.settings.autoFolder?', and copied to your folder on this computer at every End shift':'')+'.'+(cloudOn()?'':' Nothing is sent online unless you sign in.')+'</span></div>'+
+  $('#setData').innerHTML='<div class="card-head"><h2>Data</h2><span class="sub" data-tip="'+esc((cloudOn()?'Kept in this browser and saved to your account'+(CLOUD.user&&CLOUD.user.name?' ('+esc(CLOUD.user.name)+')':'')+', so it follows you to other devices':'Kept in this browser')+(S.settings.autoFolder?', and copied to your folder on this computer at every End shift':'')+'.'+(cloudOn()?'':' Nothing is sent online unless you sign in.'))+'">'+(cloudOn()?'Saved to your account':'Kept in this browser')+'</span></div>'+
     '<div class="nudge" style="margin-bottom:14px;align-items:center;flex-wrap:wrap">'+ICON.dl+'<span style="flex:1;min-width:220px"><b>Save CSV reports to a folder on End shift</b><br><span class="small" id="folderStatus">'+(fsOK?'Checking folder...':'Not available in this browser - use Chrome or Edge.')+'</span></span>'+
     (fsOK?'<label class="check" style="padding:0"><input type="checkbox" id="autoFolderChk" '+(S.settings.autoFolder?'checked':'')+'><span>On</span></label><button class="btn sm" id="pickDir">Choose folder</button><button class="btn sm primary" id="saveNow">Save today now</button>':'')+'</div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="expJson">'+ICON.dl+'Backup (JSON)</button><button class="btn" id="impJson">'+ICON.ul+'Restore from backup</button>'+
@@ -3590,7 +3643,7 @@ function renderSettings(){
       $('#wipeGo',m).onclick=function(){S=defaults();S.tasks=[];['hero','page'].forEach(function(w){wallSet(w,null);});save();closeModal();staticBanners=[];renderAll();toast('All data deleted.');};
     });
   };
-  $('#setAudit').innerHTML='<div class="card-head"><h2>Change log</h2><span class="sub">Every manual fix, so your numbers stay trustworthy</span></div>'+
+  $('#setAudit').innerHTML='<div class="card-head"><h2 data-tip="Every manual fix, so your numbers stay trustworthy.">Change log</h2></div>'+
     (S.audit.length?'<div class="tbl-wrap"><table class="tbl"><tr><th>When</th><th>Day</th><th>Change</th></tr>'+S.audit.slice(0,60).map(function(a){return '<tr><td class="num small">'+new Date(a.ts).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</td><td class="small">'+(a.day?esc(fmtDate(a.day,{day:'numeric',month:'short'})):'')+'</td><td>'+esc(a.msg)+'</td></tr>';}).join('')+'</table></div>':'<div class="empty">No changes yet.</div>');
 }
 function fld(label,key,type,val,attrs){return '<div class="field"><label>'+label+'</label><input class="inp'+(type==='number'?' num':'')+'" type="'+type+'" data-s="'+key+'" value="'+esc(val)+'" '+(attrs||'')+'></div>';}
@@ -3714,6 +3767,7 @@ var TZ={s:.92,m:1,l:1.12,xl:1.25},TZL=[['s','Small'],['m','Default'],['l','Large
 function applyText(dark){
   var st=document.documentElement.style,z=TZ[UI.textSize]||1,ink=S&&S.settings&&S.settings.textInk;
   if(z!==1)st.setProperty('--tz',z);else st.removeProperty('--tz');
+  applyFonts();
   var surf=dark?'#16211E':'#FFFFFF',c=ink==='strong'?(dark?'#FFFFFF':'#000000'):okHex(ink)?ink:null;
   if(c){st.setProperty('--ink',c);st.setProperty('--ink2',mixHex(c,surf,ink==='strong'?.1:.16));st.setProperty('--muted',mixHex(c,surf,ink==='strong'?.2:.3));}
   else ['--ink','--ink2','--muted'].forEach(function(v){st.removeProperty(v);});
@@ -3891,25 +3945,21 @@ function renderLook(){
   var pic=function(w,label){var u=WALL[w],f=wallFit(w);return '<div class="lk-sec"><h3>'+label+'</h3><div class="lk-prev'+(u?' has':'')+'" id="lkPrev-'+w+'"'+(u?' style="background-image:url(&quot;'+u+'&quot;);background-position:'+f.x+'% '+f.y+'%"':'')+'>'+(u?'':ICON.image+'No picture')+'</div>'+
     '<div class="lk-acts"><button class="btn sm" data-lk-wall="'+w+'">'+ICON.ul+(u?'Change':'Choose picture')+'</button>'+(u?'<button class="btn sm" data-lk-adj="'+w+'" title="Choose which part of the picture shows">'+ICON.crop+'Adjust</button><button class="btn sm" data-lk-unwall="'+w+'">Remove</button>':'')+'</div>'+wallLine(w)+'</div>';};
   var ink=s.textInk||'auto',own=okHex(ink)?ink:'';
-  box.innerHTML='<div class="card-head"><h2>Home page</h2></div>'+
-    '<label class="check"><input type="checkbox" id="keepDoneChk"'+(s.keepDone?' checked':'')+'><span><b>Keep completed tasks on Today</b><br><span class="small muted">Off: Today shows only the tasks completed this shift, and older ones are in History. On: every completed task stays under Completed, with the date it was done.</span></span></label>'+
+  box.innerHTML='<div class="card-head"><h2>Appearance</h2></div>'+
+    '<label class="check"><input type="checkbox" id="keepDoneChk"'+(s.keepDone?' checked':'')+'><span><b data-tip="Off: Home shows only the tasks completed this shift, and older ones are in History. On: every completed task stays under Completed, with the date it was done.">Show completed</b></span></label>'+
     '<div class="lk-grid">'+
-      '<div class="lk-sec lk-mode"><h3>Mode</h3><div class="seg">'+[['light','Light'],['dark','Dark'],['auto','Auto']].map(function(m){return '<button data-lk-mode="'+m[0]+'"'+(mode===m[0]?' class="on"':'')+(m[0]==='auto'?' title="Follow this device"':'')+'>'+m[1]+'</button>';}).join('')+'</div></div>'+
+      '<div class="lk-sec lk-mode"><h3>Theme</h3><div class="seg">'+[['light','Light'],['dark','Dark'],['auto','Auto']].map(function(m){return '<button data-lk-mode="'+m[0]+'"'+(mode===m[0]?' class="on"':'')+(m[0]==='auto'?' title="Follow this device"':'')+'>'+m[1]+'</button>';}).join('')+'</div></div>'+
       '<div class="lk-sec lk-cols"><h3>Colours</h3><div class="lk-sws">'+Object.keys(THEMES).map(sw).join('')+'</div>'+
         '<div class="lk-pick"><label><input type="color" data-lk-c="core" value="'+t.core+'">Focus</label><label><input type="color" data-lk-c="brk" value="'+t.brk+'">Break</label><label><input type="color" data-lk-c="frame" value="'+t.frame+'">Top bar</label>'+
         (pre!=='pine'?'<button class="btn sm" data-lk-preset="pine">Reset</button>':'')+'</div></div>'+
-      '<div class="lk-sec lk-txt"><h3>Text size</h3><div class="seg">'+TZL.map(function(z){return '<button data-lk-tz="'+z[0]+'"'+((UI.textSize||'m')===z[0]?' class="on"':'')+'>'+z[1]+'</button>';}).join('')+'</div></div>'+
-      '<div class="lk-sec lk-inks"><h3>Text colour</h3><div class="lk-ink">'+
-        '<button class="lk-sw'+(ink==='auto'?' on':'')+'" data-lk-ink="auto" title="Easy to read in light and dark mode"><span class="aa">Aa</span>Default</button>'+
-        '<button class="lk-sw'+(ink==='strong'?' on':'')+'" data-lk-ink="strong" title="Black text (white in dark mode), strongest contrast"><span class="aa" style="color:'+(isDark()?'#fff':'#000')+'">Aa</span>Strong</button>'+
-        '<label class="lk-sw'+(own?' on':'')+'" title="Pick your own text colour"><input type="color" data-lk-ink-own value="'+(own||(isDark()?'#E8F0EC':'#13221E'))+'">Own</label></div></div>'+
-      pic('hero','Quote picture')+pic('page','Page wallpaper')+
-      '<div class="lk-sec lk-glass"><h3>Section transparency <b class="num" id="lkGlassV">'+glassPct()+'%</b></h3>'+
-        '<input type="range" id="lkGlass" min="0" max="100" step="1" value="'+glassPct()+'" aria-label="Section transparency"'+(WALL.page?'':' disabled')+'>'+
+      fontsHtml()+
+      pic('hero','Quote picture')+pic('page','Wallpaper')+
+      '<div class="lk-sec lk-glass"><h3>Transparency <b class="num" id="lkGlassV">'+glassPct()+'%</b></h3>'+
+        '<input type="range" id="lkGlass" min="0" max="100" step="1" value="'+glassPct()+'" aria-label="Transparency"'+(WALL.page?'':' disabled')+'>'+
         '<div class="lk-scale"><span>Solid</span><span>'+(WALL.page?'See-through':'Add a page wallpaper first')+'</span></div></div>'+
     '</div>'+
-    '<p class="small muted" style="margin:14px 0 0">Pictures, colours, text colour and transparency follow your account to every device when you are signed in. Dark mode and text size are set on each device.</p>';
-  $('#keepDoneChk').onchange=function(e){s.keepDone=e.target.checked;audit('Keep completed tasks on Today: '+(s.keepDone?'on':'off'));save();toast(s.keepDone?'Completed tasks now stay on Today.':'Today shows only this shift\'s completed tasks again.');};
+    '<p class="small muted" style="margin:14px 0 0">Pictures, colours, fonts and transparency follow your account to every device when you are signed in. Dark mode and text size are set on each device.</p>';
+  $('#keepDoneChk').onchange=function(e){s.keepDone=e.target.checked;audit('Show completed: '+(s.keepDone?'on':'off'));save();toast(s.keepDone?'Completed tasks now stay on Home.':'Home shows only this shift\'s completed tasks again.');};
   $$('[data-lk-mode]',box).forEach(function(b){b.onclick=function(){setDark(b.getAttribute('data-lk-mode'));};});
   $$('[data-lk-preset]',box).forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-lk-preset');s.theme={preset:id};audit('Colours: '+THEMES[id].name);save();renderAll();};});
   $$('[data-lk-c]',box).forEach(function(inp){
@@ -3927,13 +3977,76 @@ function renderLook(){
   var io=$('[data-lk-ink-own]',box);
   io.oninput=function(){s.textInk=io.value;applyLook();};
   io.onchange=function(){s.textInk=io.value;audit('Text colour: your own');save();renderAll();};
+  $$('[data-ft-f]',box).forEach(function(sl){sl.onchange=function(){fontSet(sl.getAttribute('data-ft-f'),'f',sl.value);};});
+  $$('[data-ft-z]',box).forEach(function(b){b.onclick=function(){var p=b.getAttribute('data-ft-z').split('|');fontSet(p[0],'z',p[1]==='m'?'':p[1]);};});
+  $$('[data-ft-cd]',box).forEach(function(b){b.onclick=function(){fontSet(b.getAttribute('data-ft-cd'),'c','');};});
+  $$('[data-ft-c]',box).forEach(function(inp){
+    inp.oninput=function(){fontSet(inp.getAttribute('data-ft-c'),'c',inp.value,true);};
+    inp.onchange=function(){fontSet(inp.getAttribute('data-ft-c'),'c',inp.value);};
+  });
+  var fr=$('[data-ft-reset]',box);
+  if(fr)fr.onclick=function(){s.fonts={};s.textInk='auto';delete UI.textSize;saveUI();audit('Fonts: reset');save();renderAll();};
+}
+var FONTS={
+  bric:{n:'Bricolage Grotesque',st:'"Bricolage Grotesque","Figtree",system-ui,sans-serif',q:''},
+  fig:{n:'Figtree',st:'"Figtree","Segoe UI",system-ui,sans-serif',q:''},
+  inter:{n:'Inter',st:'"Inter","Segoe UI",system-ui,sans-serif',q:'Inter:wght@400..800'},
+  pop:{n:'Poppins',st:'"Poppins","Segoe UI",system-ui,sans-serif',q:'Poppins:wght@400;500;600;700'},
+  lora:{n:'Lora',st:'"Lora",Georgia,serif',q:'Lora:wght@400..700'},
+  mono:{n:'JetBrains Mono',st:'"JetBrains Mono",Consolas,monospace',q:'JetBrains+Mono:wght@400..700'}
+};
+var FROWS=[['h','Headings'],['s','Subheadings'],['t','Tasks'],['n','Notes'],['x','Text']];
+var FZ={s:.9,m:1,l:1.15,xl:1.3},FZL=[['s','S'],['m','M'],['l','L'],['xl','XL']];
+function loadFont(id){   // a font is fetched only when something uses it
+  var o=FONTS[id];if(!o||!o.q||document.getElementById('ffl-'+id))return;
+  var l=document.createElement('link');l.id='ffl-'+id;l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+o.q+'&display=swap';document.head.appendChild(l);
+}
+function applyFonts(){
+  var root=document.documentElement,st=root.style,f=(S&&S.settings&&S.settings.fonts)||{};
+  FROWS.forEach(function(r){
+    var k=r[0],o=f[k]||{},fo=FONTS.hasOwnProperty(o.f)?FONTS[o.f]:null,z=FZ.hasOwnProperty(o.z)?FZ[o.z]:0;
+    if(fo){loadFont(o.f);st.setProperty('--ff-'+k,fo.st);}else st.removeProperty('--ff-'+k);
+    root.classList.toggle('ff-'+k,!!fo);
+    if(k==='x')return;
+    if(z&&z!==1)st.setProperty('--fz-'+k,z);else st.removeProperty('--fz-'+k);
+    root.classList.toggle('fz-'+k,!!(z&&z!==1));
+    if(okHex(o.c))st.setProperty('--fc-'+k,o.c);else st.removeProperty('--fc-'+k);
+    root.classList.toggle('fc-'+k,okHex(o.c));
+  });
+}
+function fontSet(k,key,val,quiet){
+  var f=(S.settings.fonts&&typeof S.settings.fonts==='object')?S.settings.fonts:(S.settings.fonts={}),o=f[k]||(f[k]={});
+  if(val)o[key]=val;else delete o[key];
+  if(!Object.keys(o).length)delete f[k];
+  if(quiet){applyFonts();return;}
+  var lab=FROWS.filter(function(r){return r[0]===k;})[0][1];
+  audit('Fonts: '+lab+' '+(key==='f'?'font':key==='z'?'size':'colour')+(val?' '+val:' default'));save();renderAll();
+}
+function fontsHtml(){
+  var s=S.settings,f=s.fonts||{},ink=s.textInk||'auto',own=okHex(ink)?ink:'',tz=UI.textSize||'m',dflt=isDark()?'#E8F0EC':'#13221E';
+  var changed=Object.keys(f).length||ink!=='auto'||UI.textSize;
+  var rows=FROWS.map(function(r){
+    var k=r[0],o=f[k]||{},x=k==='x';
+    var sel='<select class="inp" data-ft-f="'+k+'" aria-label="'+r[1]+' font"><option value="">Default</option>'+Object.keys(FONTS).map(function(id){return '<option value="'+id+'"'+(o.f===id?' selected':'')+'>'+FONTS[id].n+'</option>';}).join('')+'</select>';
+    var zc=x?tz:(o.z||'m');
+    var size='<div class="seg">'+FZL.map(function(z){return '<button '+(x?'data-lk-tz="'+z[0]+'"':'data-ft-z="'+k+'|'+z[0]+'"')+(zc===z[0]?' class="on"':'')+'>'+z[1]+'</button>';}).join('')+'</div>';
+    var col;
+    if(x)col='<div class="lk-ink"><button class="lk-sw'+(ink==='auto'?' on':'')+'" data-lk-ink="auto" data-tip="Easy to read in light and dark mode">Default</button>'+
+      '<button class="lk-sw'+(ink==='strong'?' on':'')+'" data-lk-ink="strong" data-tip="Black text (white in dark mode), strongest contrast">Strong</button>'+
+      '<label class="lk-sw'+(own?' on':'')+'" data-tip="Pick your own text colour"><input type="color" data-lk-ink-own value="'+(own||dflt)+'">Own</label></div>';
+    else col='<div class="lk-ink"><button class="lk-sw'+(okHex(o.c)?'':' on')+'" data-ft-cd="'+k+'">Default</button>'+
+      '<label class="lk-sw'+(okHex(o.c)?' on':'')+'" data-tip="Pick your own colour"><input type="color" data-ft-c="'+k+'" value="'+(okHex(o.c)?o.c:dflt)+'">Own</label></div>';
+    return '<div class="ft-row"><span class="ft-l"'+(x?' data-tip="Text size is set on each device. Everything else follows your account."':'')+'>'+r[1]+'</span>'+sel+size+col+'</div>';
+  }).join('');
+  return '<div class="lk-sec lk-fonts"><h3>Fonts</h3><div class="ft"><div class="ft-hd"></div><div class="ft-hd">Font</div><div class="ft-hd">Size</div><div class="ft-hd">Colour</div>'+rows+'</div>'+
+    (changed?'<div class="lk-acts"><button class="btn sm" data-ft-reset>Reset</button></div>':'')+'</div>';
 }
 
 /* ---- your own quote or goal on Today (S.settings.myQuote, follows the account); "auto" goes back to the daily quotes ---- */
 function myQuote(){var q=S.settings.myQuote;return S.settings.quoteMode==='mine'&&q&&q.text?q:null;}
 function setQuoteMode(m){
   S.settings.quoteMode=m;audit(m==='mine'?'Quote: your own':'Quote: automatic');save();renderToday();
-  toast(m==='mine'?'Your quote is on Today.':'Back to automatic quotes. Your own quote is kept for later.');
+  toast(m==='mine'?'Your quote is on Home.':'Back to automatic quotes. Your own quote is kept for later.');
 }
 function editQuote(){
   var q=S.settings.myQuote||{},mine=!!myQuote();
@@ -3970,7 +4083,7 @@ function renderNotes(force){
   var qi=$('#noteQ'),hadQ=qi&&document.activeElement===qi,qa=qi?qi.selectionStart:0,qb=qi?qi.selectionEnd:0;
   var hits=q?all.filter(function(n){return n.text.toLowerCase().indexOf(q)>=0;}):all;
   var show=(UI.notesAll||q)?hits:hits.slice(0,5);
-  card.innerHTML='<div class="card-head"><h2>Notes</h2><span class="sub">'+(all.length?all.length+' saved':'Ideas and reminders to look back on')+'</span>'+
+  card.innerHTML='<div class="card-head"><h2>Notes</h2><span class="sub">'+(all.length?all.length+' saved':'')+'</span>'+
       (all.length>5?'<div class="right"><input class="inp sm" id="noteQ" type="search" placeholder="Search notes" aria-label="Search notes" value="'+esc(UI.noteQ||'')+'"></div>':'')+'</div>'+
     '<form class="note-add" id="noteForm"><textarea class="inp" id="noteNew" maxlength="2000" rows="2" placeholder="Write a note for later..."></textarea>'+
       '<div class="row"><span class="small muted">Ctrl + Enter to save</span><button class="btn primary" type="submit">Save note</button></div></form>'+
@@ -4012,6 +4125,28 @@ function delNote(id){
   var i=S.notes.indexOf(noteById(id));if(i<0)return;
   var n=S.notes.splice(i,1)[0];afterChange();
   toast('Note deleted.',function(){S.notes.splice(Math.min(i,S.notes.length),0,n);afterChange();});
+}
+
+
+/* ================= GUIDE: plain text, one short card per part ================= */
+var GUIDE=[
+  ['Shift','Press <b>Start shift</b> and Focus starts. <b>End shift</b> closes the day with a summary. <b>Resume shift</b> carries on if you ended too soon.'],
+  ['Focus and Break','One of the two is always running. Tap a tile, or press <kbd>1</kbd> for Focus and <kbd>2</kbd> for Break. A note says what you are working on.'],
+  ['Tasks','Type a task and press Add; tick it when done. <b>Categories</b> colour and group tasks, <b>Repeat</b> brings a task back, <b>Select</b> changes many at once.'],
+  ['Notes','Write anything to keep for later. Pin the important ones.'],
+  ['Progress','Tasks done against tasks left, and a timeline of your Focus and Break so far.'],
+  ['Timesheet','Pick a day to see everything logged. Fix a note, move minutes between Focus and Break, or undo a change.'],
+  ['History and Insights','History looks back by day, note or task. Insights shows where your focus goes.'],
+  ['Pomodoro','Rounds of 25 minutes focus and 5 minutes break, with a 15 minute break after 4 rounds. Press Start or Pause on the timer; the gear changes lengths, goal and sound.'],
+  ['Quote card','A new quote each day. The pencil writes your own quote or goal; the arrows give another quote or go back to automatic ones.'],
+  ['Settings',null]
+];
+var GUIDE_SET=[['Name, Shift, Break','your name and lengths'],['Note prompt','ask what you work on when Focus starts'],['Auto-start','start Focus when you open the page'],['Show completed','keep finished tasks on Home'],['Theme','Light, Dark or Auto'],['Colours','Focus, Break and top bar colours'],['Fonts','font, size and colour of text'],['Wallpaper, Transparency','page picture and how see-through cards are'],['Data','back up, restore, export or delete'],['Change log','every manual fix']];
+function renderGuide(){
+  var b=$('#guideBody');if(!b||b.firstChild)return;
+  b.innerHTML=GUIDE.map(function(g){
+    return '<div class="card"><div class="card-head"><h2>'+g[0]+'</h2></div>'+(g[1]?'<p>'+g[1]+'</p>':'<ul>'+GUIDE_SET.map(function(x){return '<li><b>'+x[0]+'</b>: '+x[1]+'</li>';}).join('')+'</ul>')+'</div>';
+  }).join('');
 }
 
 /* ================= modal / toast / tooltip / misc ================= */
@@ -4063,6 +4198,7 @@ document.addEventListener('click',function(e){
   var he=e.target.closest('[data-ht-edit]');if(he){htEdit(he.getAttribute('data-ht-edit'));return;}
   if(e.target.closest('[data-todo-fold]')){UI.todoOpen=!UI.todoOpen;saveUI();renderTodos();return;}
   if(e.target.closest('[data-cats]')){manageCats();return;}
+  var cf=e.target.closest('[data-cat-fold]');if(cf){var fk=cf.getAttribute('data-cat-fold');UI.catFold=UI.catFold||{};if(UI.catFold[fk])delete UI.catFold[fk];else UI.catFold[fk]=1;saveUI();renderTodos();return;}
   if(e.target.closest('[data-todo-later]')){UI.todoLater=!UI.todoLater;saveUI();renderTodos();return;}
   if(e.target.closest('[data-go-tasks]')){UI.hist='tasks';saveUI();go('history');return;}
   var nb=e.target.closest('[data-note-del]');if(nb){delNote(nb.getAttribute('data-note-del'));return;}
@@ -4302,7 +4438,8 @@ function signInWithCustom(h){
     CLOUD.user={uid:uid,provider:h.provider,name:h.name||'',email:h.email||'',photo:h.photo||''};
     if(!same){CLOUD.ut=null;CLOUD.dirty=false;CLOUD.lastSync=0;}
     CLOUD.err='';authStore();renderTop();renderAccount();
-    if(!S.settings.name&&h.name){S.settings.name=h.name.split(' ')[0];save();}
+    if((!S.settings.name||S.settings.name==='User X')&&h.name){   // a skipped welcome box leaves the placeholder name: the account's first name replaces it
+      S.settings.name=h.name.split(' ')[0];save();}
     return cloudFirstSync();
   });
 }
@@ -4402,12 +4539,12 @@ function renderAccount(){
   if(!CLOUD.cfg){el.innerHTML='';el.hidden=true;return;}
   el.hidden=false;
   if(!CLOUD.user){
-    el.innerHTML='<div class="card-head"><h2>Your account</h2><span class="sub">Optional</span></div>'+
+    el.innerHTML='<div class="card-head"><h2>Your account</h2></div>'+
       '<p style="margin:0 0 12px">Sign in with Google, GitHub or Discord and your tracking is saved to your account, so it follows you to any device.</p>'+
       '<button class="btn primary" id="saIn">Sign in</button>';
     $('#saIn').onclick=signInSheet;return;
   }
-  el.innerHTML='<div class="card-head"><h2>Your account</h2><span class="sub">Your data is saved to this account</span></div>'+accountHtml()+
+  el.innerHTML='<div class="card-head"><h2>Your account</h2></div>'+accountHtml()+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn primary" id="saSync">Sync now</button><button class="btn" id="saOut">Sign out</button></div>';
   $('#saSync').onclick=syncNow;$('#saOut').onclick=signOut;
 }
@@ -4590,7 +4727,7 @@ $('#nextQuote').onclick=function(){UI.quoteOff=(UI.quoteOff+1)%QUOTES.length;sav
 $('#editQuote').onclick=editQuote;
 $('#autoQuote').onclick=function(){setQuoteMode('auto');};
 $('#shiftBtn').onclick=function(){
-  if(S.activeDay){confirmBox('End your shift?','All timers stop and you will see your day summary. You can carry on any time with Resume shift, or start a new shift, on the Today page.','End shift',endShift);return;}
+  if(S.activeDay){confirmBox('End your shift?','All timers stop and you will see your day summary. You can carry on any time with Resume shift, or start a new shift, on the Home page.','End shift',endShift);return;}
   var le=lastEnded();if(le)resumeShift(le);else newShift();
 };
 window.addEventListener('hashchange',function(){
@@ -4656,20 +4793,22 @@ function autoLogin(){
   if(!td||!td.ended){setState('core');toast('Logged in at '+fmtClock(Date.now())+'. Focus started.');}
 }
 function welcome(){
-  modal('<div class="modal-h"><h3>Welcome to MayhemNull</h3></div><div class="modal-b">'+
-    '<p style="margin:0 0 12px">Two quick things, then you are ready. You can change both later in Settings.</p>'+
-    '<div class="form-row"><div class="field"><label>Your name</label><input class="inp" id="wName" maxlength="40" placeholder="e.g. Rahul"></div>'+
+  modal('<div class="modal-h wl-h"><h3>Welcome to MayhemNull</h3><button class="icon-btn" id="wX" title="Skip: you start as User X with a 9 hour shift" aria-label="Skip">&times;</button></div><div class="modal-b">'+
+    '<p style="margin:0 0 12px">Two optional things, then you are ready. You can change both later in Settings.</p>'+
+    '<div class="form-row"><div class="field"><label>Your name</label><input class="inp" id="wName" maxlength="40" placeholder="User X"></div>'+
     '<div class="field"><label>Shift length (hours)</label><input class="inp num" id="wShift" type="number" min="1" max="16" step="0.5" value="'+(S.settings.shiftMin/60)+'"></div></div>'+
-    '<p class="small muted" style="margin:0">Press <b>Start shift</b> when you begin and Focus starts at once. Add your tasks on Today and tick each one off when it is done.</p></div>'+
+    '<p class="small muted" style="margin:0">Press <b>Start shift</b> when you begin and Focus starts at once. Add your tasks on Home and tick each one off when it is done. <button class="link" id="wGuide">How it works</button></p></div>'+
     '<div class="modal-f"><button class="btn primary" id="wGo">Let\'s start</button></div>',function(m){
-      var go2=function(){
-        var n=$('#wName',m).value.trim(),h=+$('#wShift',m).value;
-        if(n)S.settings.name=n;
+      var done=function(skip,to){
+        var n=skip?'':$('#wName',m).value.trim(),h=skip?9:+$('#wShift',m).value;
+        S.settings.name=n||'User X';
         if(h>=1&&h<=16)S.settings.shiftMin=Math.round(h*60);
-        audit('First-run setup');save();closeModal();renderAll();go('today');
+        audit(skip?'First-run setup skipped':'First-run setup');save();closeModal();renderAll();go(to||'today');
       };
-      $('#wGo',m).onclick=go2;
-      $('#wName',m).onkeydown=function(e){if(e.key==='Enter')go2();};
+      $('#wGo',m).onclick=function(){done(false);};
+      $('#wX',m).onclick=function(){done(true);};
+      $('#wGuide',m).onclick=function(){done(false,'guide');};
+      $('#wName',m).onkeydown=function(e){if(e.key==='Enter')done(false);};
     },true);
 }
 function boot(){
