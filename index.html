@@ -949,6 +949,10 @@ body.has-wall.see-thru .card .btn,body.has-wall.see-thru .card .inp,body.has-wal
 .lk-ink label.lk-sw{cursor:pointer}
 .lk-ink input[type=color]{width:26px;height:26px;padding:0;border:0;background:none;cursor:pointer}
 /* task categories */
+.nt-list{max-height:38vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.nt-grp{display:flex;align-items:center;font-size:calc(12px*var(--tz,1));font-weight:700;color:var(--ink2);margin:6px 0 0}
+.nt-row{display:flex;align-items:center;text-align:left;gap:0;width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);border-left:4px solid var(--cc,var(--line));background:var(--surface);color:var(--ink);font-weight:600;font-size:calc(14px*var(--tz,1));cursor:pointer}
+.nt-row:hover{background:var(--bg)}
 .cat-dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none;vertical-align:middle;margin-right:6px}
 .cat-dot.none{background:transparent;box-shadow:inset 0 0 0 1.5px var(--muted)}
 .cat-tag{display:inline-flex;align-items:center;font-size:calc(12px*var(--tz,1));font-weight:600;color:var(--ink2);margin-left:6px;vertical-align:middle}
@@ -2164,22 +2168,33 @@ function askReason(st,intro,onPick,onCancel){
 function pickState(st,why){
   var o=curSeg();
   if(st!=='core'){setState(st,why);return;}
-  if(o&&o.state==='core'){askNote({change:true,cur:o.reason||''},function(n,fix){changeNote(n,fix);});return;}   // asked for on purpose: always allowed
+  if(o&&o.state==='core'){askNote({change:true,cur:o.reason||'',tasks:true},function(n,fix,tid){if(tid){focusTask(tid);return;}changeNote(n,fix);});return;}   // asked for on purpose: always allowed
   if(S.settings.askNote===false){setState('core',why);return;}   // notes are switched off: Focus starts at once
-  askNote({},function(n){
+  askNote({tasks:true},function(n,fix,tid){
     setState('core',why);
     var seg=curSeg();
-    if(seg&&seg.state==='core'&&n){seg.reason=n;afterChange();}
+    if(seg&&seg.state==='core'&&n){seg.reason=n;if(tid)seg.task=tid;afterChange();}
   });
+}
+/* open tasks as tap rows, grouped under their category (name + colour) when categories exist */
+function taskRows(ts){
+  var row=function(t){var c=catById(t.cat),col=c&&okHex(c.color)?c.color:'';return '<button class="nt-row" data-task="'+t.id+'"'+(col?' style="--cc:'+col+'"':'')+'>'+catDot(c)+'<span>'+esc(t.text)+'</span></button>';};
+  if(!S.cats.length)return ts.map(row).join('');
+  return S.cats.concat([null]).map(function(c){
+    var g=ts.filter(function(t){return c?t.cat===c.id&&catById(t.cat):!catKey(t);});
+    return g.length?'<div class="nt-grp">'+catDot(c)+esc(c?c.name:'No category')+'</div>'+g.map(row).join(''):'';
+  }).join('');
 }
 /* The note box: what you are working on in this Focus session. Optional. */
 function askNote(o,done){
   o=o||{};
   var recent=o.noRecent?[]:recentNotes(8);
+  var tasks=o.tasks?S.todos.filter(dueNow):[];   // open tasks, picked in one tap
   var title=o.title||(o.change?'What are you working on now?':'What are you working on?');
   var intro=o.intro||(o.change?'A new note starts a new session from now. The session so far keeps its note.':'Your note shows next to this session in your day, history and insights.');
   modal('<div class="modal-h"><h3>'+esc(title)+'</h3></div><div class="modal-b">'+
     '<p class="small muted" style="margin:0 0 12px">'+esc(intro)+'</p>'+
+    (tasks.length?'<div class="small muted" style="margin:0 0 6px">Pick a task to start Focus on it</div><div class="nt-list" id="nTasks">'+taskRows(tasks)+'</div><div class="small muted" style="margin:12px 0 6px">Or type a note</div>':'')+
     '<input class="inp" id="nTxt" maxlength="80" placeholder="e.g. Writing the project report" value="'+esc(o.value||'')+'">'+
     (recent.length?'<div class="small muted" style="margin:12px 0 6px">Recent</div><div class="chips note-chips" id="nRecent">'+recent.map(function(r){return '<button class="chip" data-note="'+esc(r)+'">'+esc(r)+'</button>';}).join('')+'</div>':'')+
     '<div class="form-msg" id="nMsg"></div></div>'+
@@ -2187,7 +2202,8 @@ function askNote(o,done){
     (o.change?(o.cur!=null?'<button class="btn" id="nFix">Just fix this session\'s note</button>':''):(o.noSkip?'':'<button class="btn" id="nSkip">'+(o.okLabel?'No note':'Start without a note')+'</button>'))+
     '<button class="btn primary" id="nGo">'+esc(o.okLabel||(o.change?'Start new session':'Start Focus'))+'</button></div>',function(m){
     var inp=$('#nTxt',m);
-    var finish=function(v,fix){closeModal();done(String(v||'').trim().slice(0,80),!!fix);};
+    var finish=function(v,fix,tid){closeModal();done(tid?String(v||''):String(v||'').trim().slice(0,80),!!fix,tid);};
+    if($('#nTasks',m))$('#nTasks',m).onclick=function(e){var b=e.target.closest('[data-task]'),t=b&&todoById(b.getAttribute('data-task'));if(t)finish(t.text,false,t.id);};
     $('#nGo',m).onclick=function(){
       var v=inp.value.trim();
       if(o.change&&!v){$('#nMsg',m).textContent='Type what you are working on now, or pick a recent one.';inp.focus();return;}
@@ -2680,7 +2696,7 @@ function lastEnded(){
 function beginShift(prep,why){
   var go=function(){prep();setState('core',why);};
   if(S.settings.askNote===false){go();return;}
-  askNote({},function(n){go();var seg=curSeg();if(seg&&seg.state==='core'&&n){seg.reason=n;afterChange();}});
+  askNote({tasks:true},function(n,fix,tid){go();var seg=curSeg();if(seg&&seg.state==='core'&&n){seg.reason=n;if(tid)seg.task=tid;afterChange();}});
 }
 function resumeShift(k){
   beginShift(function(){var d=S.days[k],now=Date.now();d.ended=null;d.runFrom=now;S.activeDay=k;hbWrite(now);audit('Shift resumed at '+fmtClock(now),k);},'Shift resumed at '+fmtClock(Date.now())+'. Focus is running.');
@@ -3240,19 +3256,19 @@ function stat(v,l){return '<div class="stat"><div class="v">'+v+'</div><div clas
 /* ================= BOARD ================= */
 var adjMode={task:1};
 function renderBoard(){
-  var k=UI.boardDay||todayKey();   // null = follow today's date (rolls over at midnight)
+  var k=UI.boardDay||workKey();   // null = follow the running shift's day (else today's date)
   var d=S.days[k],t=totals(d);
   $('#boardHead').innerHTML='<div class="card-head" style="margin:0"><button class="btn sm" id="bPrev" title="Previous day">&lt;</button>'+
     '<input type="date" class="inp" id="bDate" value="'+k+'" max="'+todayKey()+'" style="width:auto">'+
     '<button class="btn sm" id="bNext" title="Next day" '+(k>=todayKey()?'disabled':'')+'>&gt;</button>'+
-    '<button class="btn sm" id="bToday">Today</button>'+
+    '<button class="btn sm" id="bToday"'+(workKey()!==todayKey()?' title="The day your running shift started"':'')+'>'+(workKey()!==todayKey()?'Current shift':'Today')+'</button>'+
     '<div class="right small">'+(d?'<button class="btn sm" id="bSum">Summary</button>':'')+'</div></div>';
   $('#boardStats').innerHTML=STATES.map(function(s){return [s,SMETA[s].label];}).concat([['sessions','Sessions']]).map(function(x){if(x[0]==='sessions'){var ns=sessions(d).length;return '<div class="kpi"><div class="kpi-label">Sessions</div><div class="kpi-val">'+ns+'</div><div class="kpi-sub">Focus blocks with their notes</div></div>';}var m=Math.round(t[x[0]]||0);
     return '<div class="kpi"><div class="kpi-label"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:'+COLOR[x[0]]+'"></i>'+x[1]+'</div><div class="kpi-val">'+m+' <span style="font-size:15px;font-weight:600;color:var(--muted)">min</span></div><div class="kpi-sub">'+(m>=60?fmtM(m):'&nbsp;')+'</div></div>';}).join('')+boardDoneHtml(k);
-  var pickDay=function(v){UI.boardDay=v===todayKey()?null:v;saveUI();renderBoard();};
+  var pickDay=function(v){UI.boardDay=v===workKey()?null:v;saveUI();renderBoard();};
   $('#bPrev').onclick=function(){pickDay(shiftKey(k,-1));};
   $('#bNext').onclick=function(){pickDay(shiftKey(k,1));};
-  $('#bToday').onclick=function(){pickDay(todayKey());};
+  $('#bToday').onclick=function(){pickDay(workKey());};
   $('#bDate').onchange=function(e){if(e.target.value)pickDay(e.target.value);};
   if($('#bSum'))$('#bSum').onclick=function(){showSummary(k);};
   if($('#bDone')){$('#bDone').onclick=function(){histTasksOn(k);};$('#bDone').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();histTasksOn(k);}};}
@@ -3600,8 +3616,8 @@ function renderSettings(){
   renderLook();
   $('#setShift').innerHTML='<div class="card-head"><h2>Shift</h2></div>'+
     '<div class="form-row">'+fld('Name','name','text',s.name)+fld('Shift (hours)','shiftH','number',+(s.shiftMin/60).toFixed(2),'min="1" max="16" step="0.25"')+fld('Break (min/day)','breakMin','number',s.breakMin,'min="0" max="240"')+'</div>'+
-    '<label class="check"><input type="checkbox" data-s="askNote" '+(s.askNote!==false?'checked':'')+'><span><b data-tip="Off: Focus starts at once. You can still add or change a note any time.">Note prompt</b></span></label>'+
-    '<label class="check"><input type="checkbox" data-s="autoCore" '+(s.autoCore?'checked':'')+'><span><b data-tip="Off: nothing is timed until you press Start shift. On: Focus starts (with no note) when the page is on screen. Never restarts a shift you already ended today.">Auto-start</b></span></label>';
+    '<label class="check"><input type="checkbox" data-s="askNote" '+(s.askNote!==false?'checked':'')+'><span><b data-tip="Off: Focus starts at once. You can still add or change a note any time.">Note prompt</b><span class="small muted" style="display:block">A pop-up asks what you\'re working on each time a Focus session starts. Pick a task (shown with its category and colour) or type a note.</span></span></label>'+
+    '<label class="check"><input type="checkbox" data-s="autoCore" '+(s.autoCore?'checked':'')+'><span><b data-tip="Off: nothing is timed until you press Start shift. On: Focus starts (with no note) when the page is on screen. Never restarts a shift you already ended today.">Auto-start</b><span class="small muted" style="display:block">Start Focus as soon as you open the page.</span></span></label>';
   $$('#setShift [data-s]').forEach(function(inp){
     inp.onchange=function(){
       var k=inp.getAttribute('data-s'),v=inp.type==='checkbox'?inp.checked:inp.value;
@@ -3946,7 +3962,7 @@ function renderLook(){
     '<div class="lk-acts"><button class="btn sm" data-lk-wall="'+w+'">'+ICON.ul+(u?'Change':'Choose picture')+'</button>'+(u?'<button class="btn sm" data-lk-adj="'+w+'" title="Choose which part of the picture shows">'+ICON.crop+'Adjust</button><button class="btn sm" data-lk-unwall="'+w+'">Remove</button>':'')+'</div>'+wallLine(w)+'</div>';};
   var ink=s.textInk||'auto',own=okHex(ink)?ink:'';
   box.innerHTML='<div class="card-head"><h2>Appearance</h2></div>'+
-    '<label class="check"><input type="checkbox" id="keepDoneChk"'+(s.keepDone?' checked':'')+'><span><b data-tip="Off: Home shows only the tasks completed this shift, and older ones are in History. On: every completed task stays under Completed, with the date it was done.">Show completed</b></span></label>'+
+    '<label class="check"><input type="checkbox" id="keepDoneChk"'+(s.keepDone?' checked':'')+'><span><b data-tip="Off: Home shows only the tasks completed this shift, and older ones are in History. On: every completed task stays under Completed, with the date it was done.">Show completed</b><span class="small muted" style="display:block">Keep all finished tasks on Home, not just this shift\'s.</span></span></label>'+
     '<div class="lk-grid">'+
       '<div class="lk-sec lk-mode"><h3>Theme</h3><div class="seg">'+[['light','Light'],['dark','Dark'],['auto','Auto']].map(function(m){return '<button data-lk-mode="'+m[0]+'"'+(mode===m[0]?' class="on"':'')+(m[0]==='auto'?' title="Follow this device"':'')+'>'+m[1]+'</button>';}).join('')+'</div></div>'+
       '<div class="lk-sec lk-cols"><h3>Colours</h3><div class="lk-sws">'+Object.keys(THEMES).map(sw).join('')+'</div>'+
@@ -4141,7 +4157,7 @@ var GUIDE=[
   ['Quote card','A new quote each day. The pencil writes your own quote or goal; the arrows give another quote or go back to automatic ones.'],
   ['Settings',null]
 ];
-var GUIDE_SET=[['Name, Shift, Break','your name and lengths'],['Note prompt','ask what you work on when Focus starts'],['Auto-start','start Focus when you open the page'],['Show completed','keep finished tasks on Home'],['Theme','Light, Dark or Auto'],['Colours','Focus, Break and top bar colours'],['Fonts','font, size and colour of text'],['Wallpaper, Transparency','page picture and how see-through cards are'],['Data','back up, restore, export or delete'],['Change log','every manual fix']];
+var GUIDE_SET=[['Name, Shift, Break','your name and lengths'],['Note prompt','pop-up to pick a task or type a note when Focus starts'],['Auto-start','start Focus when you open the page'],['Show completed','keep finished tasks on Home'],['Theme','Light, Dark or Auto'],['Colours','Focus, Break and top bar colours'],['Fonts','font, size and colour of text'],['Wallpaper, Transparency','page picture and how see-through cards are'],['Data','back up, restore, export or delete'],['Change log','every manual fix']];
 function renderGuide(){
   var b=$('#guideBody');if(!b||b.firstChild)return;
   b.innerHTML=GUIDE.map(function(g){
