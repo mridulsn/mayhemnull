@@ -956,16 +956,19 @@ body.has-wall.see-thru .card .btn,body.has-wall.see-thru .card .inp,body.has-wal
 .cat-dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none;vertical-align:middle;margin-right:6px}
 .cat-dot.none{background:transparent;box-shadow:inset 0 0 0 1.5px var(--muted)}
 .cat-tag{display:inline-flex;align-items:center;font-size:calc(12px*var(--tz,1));font-weight:600;color:var(--ink2);margin-left:6px;vertical-align:middle}
-.todo-grp{margin-top:6px}
+.todo-grp{margin-top:6px;position:relative;transition:transform .12s}
+.todo-grp.dragging{transition:none}
+.todo-grp-hd{display:flex;align-items:center}
+.todo-grp-hd .grip{width:28px;height:32px;margin:0 -2px 0 -6px;flex:none}
 .todo-grp+.todo-grp{margin-top:14px}
 .todo-grp-h{display:flex;align-items:center;gap:2px;font-weight:700;font-size:calc(14px*var(--tz,1));color:var(--ink);padding:6px 2px 6px}
-button.todo-grp-h{width:100%;border:0;background:transparent;font-family:inherit;text-align:left;cursor:pointer;border-radius:6px 6px 0 0}
+button.todo-grp-h{flex:1;min-width:0;width:100%;border:0;background:transparent;font-family:inherit;text-align:left;cursor:pointer;border-radius:6px 6px 0 0}
 button.todo-grp-h:hover{background:var(--bg)}
 .todo-grp-h .chev{display:inline-block;width:0;height:0;margin:0 7px 0 1px;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transform:rotate(90deg);transition:transform .15s;flex:none}
 .todo-grp.folded .todo-grp-h .chev{transform:none}
 .todo-grp.folded .todo-grp-h{opacity:.85}
 .todo-grp-h .n{margin-left:8px;font-size:calc(12px*var(--tz,1));font-weight:700;color:var(--ink2);background:var(--bg);border-radius:999px;padding:0 8px;line-height:20px}
-.todo-grp.tinted .todo-grp-h{border-bottom:2px solid var(--cc)}
+.todo-grp.tinted .todo-grp-hd{border-bottom:2px solid var(--cc)}
 .todo-none{padding:8px 2px;font-size:calc(13px*var(--tz,1));color:var(--muted)}
 /* Select mode (25 Oct) */
 .sel-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--paper);position:sticky;top:calc(var(--tbh,56px) + 6px);z-index:3}
@@ -1029,9 +1032,11 @@ button.todo-grp-h:hover{background:var(--bg)}
 .todo.tinted{background:color-mix(in srgb,var(--cc) 11%,transparent);box-shadow:inset 4px 0 0 var(--cc);border-top-color:transparent;border-radius:8px;margin-top:4px;padding-left:10px}
 .todo.tinted.dragging{background:color-mix(in srgb,var(--cc) 14%,var(--surface))}
 .todo-add select#todoCat{max-width:170px}
-.cat-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.cat-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap;position:relative;transition:transform .12s}
+.cat-row.dragging{transition:none}
+.cat-row .grip{width:28px;height:32px;margin:0 -6px;flex:none}
 .cat-row:first-child{border-top:0}
-.cat-row .inp{flex:1 1 160px;min-width:0}
+.cat-row .inp{flex:1 1 120px;min-width:0}
 .cat-sws{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .cat-sw{width:24px;height:24px;border-radius:50%;border:0;padding:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
 .cat-sw.none{background:linear-gradient(135deg,transparent calc(50% - 1px),var(--bad) 0,var(--bad) calc(50% + 1px),transparent 0),var(--surface);box-shadow:inset 0 0 0 1.5px var(--muted)}
@@ -2539,7 +2544,7 @@ function manageCats(){
   var draw=function(m){
     $('#catRows',m).innerHTML=S.cats.length?S.cats.map(function(c){
       var on=okHex(c.color)?c.color.toLowerCase():'';
-      return '<div class="cat-row" data-cat="'+c.id+'"><input class="inp" data-cat-name maxlength="30" value="'+esc(c.name)+'" aria-label="Category name">'+
+      return '<div class="cat-row" data-cat="'+c.id+'" data-cat-item="'+c.id+'">'+(S.cats.length>1?'<span class="grip" data-cat-grip title="Drag to change the order" aria-label="Drag to change the order">'+ICON.grip+'</span>':'')+'<input class="inp" data-cat-name maxlength="30" value="'+esc(c.name)+'" aria-label="Category name">'+
         '<div class="cat-sws"><button type="button" class="cat-sw none'+(on?'':' on')+'" data-cat-col="" title="No colour"></button>'+
         CATC.map(function(x){return '<button type="button" class="cat-sw'+(on===x.toLowerCase()?' on':'')+'" data-cat-col="'+x+'" style="background:'+x+'" title="'+x+'"></button>';}).join('')+
         '<input type="color" data-cat-own value="'+(on||'#2F80ED')+'" title="Your own colour"'+(on&&CATC.map(function(x){return x.toLowerCase();}).indexOf(on)<0?' class="on"':'')+'></div>'+
@@ -2549,7 +2554,7 @@ function manageCats(){
   modal('<div class="modal-h"><h3>Categories</h3></div><div class="modal-b">'+
     '<div id="catRows"></div>'+
     '<form class="cat-add" id="catAdd"><input class="inp" id="catNew" maxlength="30" placeholder="New category, e.g. Daily or Professional" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>'+
-    '<p class="small muted" style="margin:10px 0 0">Tasks in a category sit together on Home, in its colour. Pick the crossed circle for no colour.</p></div>'+
+    '<p class="small muted" style="margin:10px 0 0">Tasks in a category sit together on Home, in its colour. Drag the grip to change the order. Pick the crossed circle for no colour.</p></div>'+
     '<div class="modal-f"><button class="btn primary" data-close>Done</button></div>',function(m){
     draw(m);
     $('#catAdd',m).onsubmit=function(e){
@@ -2566,6 +2571,11 @@ function manageCats(){
         toast('Category removed: '+c.name,function(){if(catById(c.id))return;S.cats.splice(Math.min(i,S.cats.length),0,c);had.forEach(function(t){t.cat=c.id;});afterChange();if($('#catRows'))draw($('#modal'));});
       }
     };
+    $('#catRows',m).onpointerdown=function(e){
+      var g=e.target.closest('[data-cat-grip]');if(!g||e.button>0)return;
+      var el=g.closest('[data-cat-item]');
+      dragBlock(e,g,el,[].slice.call(el.parentNode.children),false,function(to){moveCat(el.getAttribute('data-cat-item'),to);draw(m);});
+    };
     $('#catRows',m).onchange=function(e){
       var row=e.target.closest('[data-cat]');if(!row)return;var c=catById(row.getAttribute('data-cat'));if(!c)return;
       if(e.target.hasAttribute('data-cat-name')){var v=e.target.value.trim().slice(0,30);if(v&&v!==c.name){c.name=v;afterChange();}else e.target.value=c.name;}
@@ -2574,6 +2584,61 @@ function manageCats(){
     setTimeout(function(){$('#catNew',m).focus();},30);
   });
 }
+/* move a category to a new place: its group moves on Home, and everywhere categories are listed */
+function moveCat(id,to){
+  var c=catById(id);if(!c)return;
+  var from=S.cats.indexOf(c);if(to===from)return;
+  S.cats.splice(from,1);S.cats.splice(clamp(to,0,S.cats.length),0,c);
+  audit('Category moved: '+c.name);afterChange();
+}
+/* drag one of a run of blocks by its grip (mouse and touch). Blocks may differ in height (a category with many tasks).
+   With pageScroll, near the top or bottom of the window the page scrolls by itself */
+function dragBlock(e,g,el,items,pageScroll,drop){
+  e.preventDefault();
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();   // a name being typed is saved first
+  var from=items.indexOf(el),to=from,last=items.length-1,sy0=window.scrollY,y0=e.clientY,lastY=y0,raf=0,done=false;
+  if(from<0||!last)return;
+  var bx=items.map(function(r){var b=r.getBoundingClientRect();return {t:b.top+sy0,h:b.height};});
+  var gap=Math.max(0,bx[1].t-bx[0].t-bx[0].h),sh=bx[from].h+gap;
+  var lo=bx[0].t-bx[from].t,hi=bx[last].t+bx[last].h-bx[from].t-bx[from].h;
+  el.classList.add('dragging');document.body.classList.add('sorting');
+  try{g.setPointerCapture(e.pointerId);}catch(x){}
+  var update=function(){
+    var dy=clamp(lastY+window.scrollY-(y0+sy0),lo,hi),top=bx[from].t+dy,bot=top+bx[from].h;
+    el.style.transform='translateY('+dy+'px)';
+    to=from;
+    for(var i=0;i<from;i++){if(top<bx[i].t+bx[i].h/2){to=i;break;}}   // past the middle of a block = takes its place
+    for(var j=last;j>from;j--){if(bot>bx[j].t+bx[j].h/2){to=j;break;}}
+    items.forEach(function(r,i){if(r===el)return;var d=(from<to&&i>from&&i<=to)?-sh:(from>to&&i<from&&i>=to)?sh:0;r.style.transform=d?'translateY('+d+'px)':'';});
+  };
+  var edge=function(){
+    if(!pageScroll)return 0;
+    var top=($('.topbar')?$('.topbar').offsetHeight:56)+70,bot=window.innerHeight-70;
+    if(lastY<top)return -Math.ceil(Math.min(1,(top-lastY)/70)*16);
+    if(lastY>bot)return Math.ceil(Math.min(1,(lastY-bot)/70)*16);
+    return 0;
+  };
+  var step=function(){
+    raf=0;if(done)return;
+    var v=edge();if(!v)return;
+    var before=window.scrollY;window.scrollBy(0,v);
+    if(window.scrollY!==before)update();
+    raf=requestAnimationFrame(step);
+  };
+  var move=function(ev){lastY=ev.clientY;update();if(!raf&&edge())raf=requestAnimationFrame(step);};
+  var up=function(){
+    done=true;if(raf)cancelAnimationFrame(raf);
+    g.removeEventListener('pointermove',move);g.removeEventListener('pointerup',up);g.removeEventListener('pointercancel',up);
+    items.forEach(function(r){r.style.transform='';});el.classList.remove('dragging');document.body.classList.remove('sorting');
+    if(to!==from)drop(to);
+  };
+  g.addEventListener('pointermove',move);g.addEventListener('pointerup',up);g.addEventListener('pointercancel',up);
+}
+document.addEventListener('pointerdown',function(e){   // a category group on Home (the Categories box wires its own)
+  var g=e.target.closest&&e.target.closest('[data-cat-grip]');if(!g||e.button>0||g.closest('#catRows'))return;
+  var el=g.closest('[data-cat-item]');if(!el)return;
+  dragBlock(e,g,el,[].slice.call(el.parentNode.children).filter(function(x){return x.hasAttribute('data-cat-item');}),true,function(to){moveCat(el.getAttribute('data-cat-item'),to);});
+});
 /* Focus on a task: Focus starts (or switches) with the task as its note */
 function focusTask(id){
   var t=todoById(id);if(!t)return;
@@ -3116,7 +3181,9 @@ function renderTodos(){
       var id=c?c.id:'',list=open.filter(function(t){return catKey(t)===id;});
       if(!list.length&&!c)return '';
       var fk=c?c.id:'_none',fold=!!(UI.catFold&&UI.catFold[fk]);   // a group can be folded away (per device)
-      return '<div class="todo-grp'+(c&&okHex(c.color)?' tinted':'')+(fold?' folded':'')+'"'+(c&&okHex(c.color)?' style="--cc:'+c.color+'"':'')+'><button type="button" class="todo-grp-h" data-cat-fold="'+fk+'" aria-expanded="'+!fold+'" title="'+(fold?'Show':'Hide')+' these tasks"><i class="chev"></i>'+(c?catDot(c):'')+'<span>'+(c?esc(c.name):'No category')+'</span><span class="n">'+list.length+'</span></button>'+
+      return '<div class="todo-grp'+(c&&okHex(c.color)?' tinted':'')+(fold?' folded':'')+'"'+(c?' data-cat-item="'+c.id+'"':'')+(c&&okHex(c.color)?' style="--cc:'+c.color+'"':'')+'><div class="todo-grp-hd">'+
+        (c&&S.cats.length>1&&!sel?'<span class="grip" data-cat-grip title="Drag to move this category up or down" aria-label="Drag to move this category">'+ICON.grip+'</span>':'')+
+        '<button type="button" class="todo-grp-h" data-cat-fold="'+fk+'" aria-expanded="'+!fold+'" title="'+(fold?'Show':'Hide')+' these tasks"><i class="chev"></i>'+(c?catDot(c):'')+'<span>'+(c?esc(c.name):'No category')+'</span><span class="n">'+list.length+'</span></button></div>'+
         (fold?'':list.length?'<ul class="todo-list">'+list.map(row).join('')+'</ul>':'<div class="todo-none">Nothing here</div>')+'</div>';
     }).join('');
   };
@@ -4148,7 +4215,7 @@ function delNote(id){
 var GUIDE=[
   ['Shift','Press <b>Start shift</b> and Focus starts. <b>End shift</b> closes the day with a summary. <b>Resume shift</b> carries on if you ended too soon.'],
   ['Focus and Break','One of the two is always running. Tap a tile, or press <kbd>1</kbd> for Focus and <kbd>2</kbd> for Break. A note says what you are working on.'],
-  ['Tasks','Type a task and press Add; tick it when done. <b>Categories</b> colour and group tasks, <b>Repeat</b> brings a task back, <b>Select</b> changes many at once.'],
+  ['Tasks','Type a task and press Add; tick it when done. <b>Categories</b> colour and group tasks (drag the grip on a category to move it up or down), <b>Repeat</b> brings a task back, <b>Select</b> changes many at once.'],
   ['Notes','Write anything to keep for later. Pin the important ones.'],
   ['Progress','Tasks done against tasks left, and a timeline of your Focus and Break so far.'],
   ['Timesheet','Pick a day to see everything logged. Fix a note, move minutes between Focus and Break, or undo a change.'],
