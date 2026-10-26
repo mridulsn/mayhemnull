@@ -372,14 +372,12 @@ a.link:hover,button.link:hover{text-decoration:underline}
 .todo.done .tx{text-decoration:line-through;color:var(--muted)}
 .todo .tx .ht-tx{color:inherit;font-weight:inherit;text-decoration:inherit}
 .todo.no .tx{text-decoration:none}
-.yn{display:inline-flex;gap:4px;flex:none}
-.yn.yn-in{display:none;margin-left:6px;vertical-align:middle;text-decoration:none}
-@media (max-width:480px){.todo>.yn{display:none}.yn.yn-in{display:inline-flex}}
-.yn-b{border:1.5px solid var(--line);background:var(--surface);color:var(--ink2);font:inherit;font-size:calc(12.5px*var(--tz,1));font-weight:700;line-height:1;padding:5px 9px;border-radius:999px;cursor:pointer}
-.yn-b.yes:hover,.yn-b.yes.on{border-color:var(--good);color:var(--good)}
-.yn-b.yes.on{background:color-mix(in srgb,var(--good) 12%,var(--surface))}
-.yn-b.no:hover,.yn-b.no.on{border-color:var(--muted);color:var(--ink)}
-.yn-b.no.on{background:var(--bg)}
+.yn{display:inline-flex;flex:none;border:1.5px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
+.yn-b{display:grid;place-items:center;border:0;background:transparent;color:var(--muted);padding:4px 10px;line-height:0;cursor:pointer}
+.yn-b+.yn-b{border-left:1.5px solid var(--line)}
+.yn-b svg{width:15px;height:15px;stroke-width:2.6}
+.yn-b.yes:hover{color:var(--good)}.yn-b.no:hover{color:var(--bad)}
+.yn-b.yes.on{background:var(--good);color:#fff}.yn-b.no.on{background:var(--bad);color:#fff}
 .no-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:calc(11.5px*var(--tz,1));font-weight:700;color:var(--muted);white-space:nowrap;vertical-align:middle;text-decoration:none}
 .cnt{display:inline-flex;align-items:center;gap:2px;margin-left:6px;vertical-align:middle;white-space:nowrap;text-decoration:none}
 .cnt-b{width:26px;height:26px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:50%;font:inherit;font-size:calc(15px*var(--tz,1));font-weight:700;line-height:1;padding:0;cursor:pointer}
@@ -1310,6 +1308,7 @@ var ICON={
   end:P+'<path d="M15 4h4v16h-4"/><path d="M10 16l4-4-4-4"/><path d="M14 12H4"/></svg>',
   play:P+'<path d="M7 5l12 7-12 7V5z"/></svg>',
   check:P+'<path d="M5 12l5 5 9-10"/></svg>',
+  cross:P+'<path d="M6 6l12 12M18 6L6 18"/></svg>',
   cal:P+'<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
   sel:P+'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg>',
   repeat:P+'<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>',
@@ -2352,6 +2351,16 @@ function tickTodo(id,on){
   afterChange();
   toast('Done: '+t.text+(tKind(t)==='count'?' ('+cntVal(t)+')':'')+(n?'. Next: '+(n.after?'next shift':shortDay(n.due)):''),function(){var x=todoById(id);if(x){reopenTodo(x);afterChange();}});
 }
+/* the Yes / No switch: tap a side to answer; tap the answered side again to move it back to To do; tap the other side to change the answer */
+function answerYn(id,yes){
+  var t=todoById(id);if(!t)return;
+  if(t.done){
+    var same=yes?!t.no:!!t.no;
+    reopenTodo(t);
+    if(same){afterChange();toast('Moved back to To do: '+t.text);return;}
+  }
+  if(yes)tickTodo(id,true);else answerNo(id);
+}
 /* Yes / No answered No: off To do, kept as Not done (a repeating one still comes back next time) */
 function answerNo(id){
   var t=todoById(id);if(!t||t.done)return;
@@ -3233,15 +3242,16 @@ function renderTodos(){
   if(SEL.on&&!sel)SEL={on:false,ids:{}};
   var row=function(t){
     var m=mins[t.id],up=!t.done&&!dueNow(t),cc=catColor(t),pk=sel&&!!SEL.ids[t.id],ty=tKind(t);
-    var mark=ty!=='yn'?'<input type="checkbox" data-todo-tick="'+t.id+'"'+(t.done?' checked':'')+' title="'+(t.done?'Move back to To do':up?'Mark as done early':'Mark as done')+'">':
-      t.done?'<span class="yn"><button type="button" class="yn-b '+(t.no?'no':'yes')+' on" data-todo-back="'+t.id+'" title="Answered '+(t.no?'No':'Yes')+'. Tap to move back to To do">'+(t.no?'No':'Yes')+'</button></span>':
-      '<span class="yn"><button type="button" class="yn-b yes" data-todo-yes="'+t.id+'" title="Yes, done'+(up?' (early)':'')+'">Yes</button><button type="button" class="yn-b no" data-todo-no="'+t.id+'" title="No, not done today. It leaves To do and is kept as Not done.">No</button></span>';
+    var mark=ty!=='yn'?'<input type="checkbox" data-todo-tick="'+t.id+'"'+(t.done?' checked':'')+' title="'+(t.done?'Move back to To do':up?'Mark as done early':'Mark as done')+'">':'';
+    var yn=ty!=='yn'||sel?'':   // Yes / No: one joined switch on the right, tick | cross; the answer fills its side, tap it again to undo
+      '<span class="yn" role="group" aria-label="Yes or No"><button type="button" class="yn-b yes'+(isYes(t)?' on':'')+'" data-yn="'+t.id+'" data-v="1" aria-pressed="'+isYes(t)+'" title="'+(isYes(t)?'Answered Yes. Tap to move back to To do':'Yes, done'+(up?' (early)':''))+'">'+ICON.check+'</button>'+
+      '<button type="button" class="yn-b no'+(isNo(t)?' on':'')+'" data-yn="'+t.id+'" data-v="0" aria-pressed="'+isNo(t)+'" title="'+(isNo(t)?'Answered No. Tap to move back to To do':'No, not done. It leaves To do and is kept as Not done.')+'">'+ICON.cross+'</button></span>';
     return '<li class="todo'+(t.done?' done':'')+(t.no?' no':'')+(up?' up':'')+(t.id===cur?' now':'')+(cc?' tinted':'')+(sel?' selm':'')+(pk?' picked':'')+'" data-id="'+t.id+'"'+(cc?' style="--cc:'+cc+'"':'')+'>'+
       (sel?'<input type="checkbox" class="sel-box" data-sel="'+t.id+'"'+(pk?' checked':'')+' aria-label="Select '+esc(t.text)+'">':
       (t.done||up?'':'<span class="grip" data-todo-grip title="Drag to reorder" aria-label="Drag to reorder">'+ICON.grip+'</span>')+mark)+
       '<span class="tx">'+(sel?'<span class="ht-tx">'+esc(t.text)+'</span>':'<button class="ht-tx" data-ht-edit="'+t.id+'" title="Edit this task">'+esc(t.text)+'</button>')+repTag(t)+(groups||!catKey(t)?'':' <span class="cat-tag">'+catDot(catById(t.cat))+esc(catById(t.cat).name)+'</span>')+
-        noTag(t)+(ty==='count'?cntHtml(t,!t.done&&!sel):'')+(ty==='yn'&&!sel?mark.replace('class="yn"','class="yn yn-in"'):'')+'</span>'+   // phones: Yes / No sit under the name
-      (m>=0.5?'<span class="tm">'+fmtM(m)+'</span>':'')+
+        noTag(t)+(ty==='count'?cntHtml(t,!t.done&&!sel):'')+'</span>'+
+      yn+(m>=0.5?'<span class="tm">'+fmtM(m)+'</span>':'')+
       (up?'<span class="tm">'+esc(upLabel(t))+'</span>':
        t.done?'<span class="tm" title="Completed '+esc(doneWhen(t.done,true))+'">'+esc(doneWhen(t.done))+(doneDay(t)!==dayKey(t.done)?' &middot; shift of '+esc(fmtDate(doneDay(t),{day:'numeric',month:'short'})):'')+'</span>':sel?'':
         (t.id===cur?'<span class="tag live-tag-sm">focusing</span><button class="btn sm" data-todo-unfocus title="Stop working on this task. Focus keeps running.">Unfocus</button>':'<button class="btn sm" data-todo-focus="'+t.id+'" title="Start Focus on this task">'+ICON.play+'Focus</button>'))+
@@ -4370,9 +4380,7 @@ document.addEventListener('click',function(e){
   if(e.target.closest('[data-sel-del]')){selDel();return;}
   var sr=SEL.on&&e.target.closest('#todoCard .todo.selm');if(sr&&!e.target.closest('.rep')){selToggle(sr.getAttribute('data-id'));return;}
   var td=e.target.closest('[data-todo-tick]');if(td){tickTodo(td.getAttribute('data-todo-tick'),td.checked);return;}
-  td=e.target.closest('[data-todo-yes]');if(td){tickTodo(td.getAttribute('data-todo-yes'),true);return;}
-  td=e.target.closest('[data-todo-no]');if(td){answerNo(td.getAttribute('data-todo-no'));return;}
-  td=e.target.closest('[data-todo-back]');if(td){tickTodo(td.getAttribute('data-todo-back'),false);return;}
+  td=e.target.closest('[data-yn]');if(td){answerYn(td.getAttribute('data-yn'),td.getAttribute('data-v')==='1');return;}
   td=e.target.closest('[data-cnt]');if(td){cntStep(td.getAttribute('data-cnt'),+td.getAttribute('data-d'));return;}
   td=e.target.closest('[data-todo-focus]');if(td){focusTask(td.getAttribute('data-todo-focus'));return;}
   if(e.target.closest('[data-todo-unfocus]')){unfocusTask();return;}
