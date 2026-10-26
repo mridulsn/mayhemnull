@@ -372,12 +372,19 @@ a.link:hover,button.link:hover{text-decoration:underline}
 .todo.done .tx{text-decoration:line-through;color:var(--muted)}
 .todo .tx .ht-tx{color:inherit;font-weight:inherit;text-decoration:inherit}
 .todo.no .tx{text-decoration:none}
-.yn{display:inline-flex;flex:none;border:1.5px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
-.yn-b{display:grid;place-items:center;border:0;background:transparent;color:var(--muted);padding:4px 10px;line-height:0;cursor:pointer}
-.yn-b+.yn-b{border-left:1.5px solid var(--line)}
-.yn-b svg{width:15px;height:15px;stroke-width:2.6}
-.yn-b.yes:hover{color:var(--good)}.yn-b.no:hover{color:var(--bad)}
-.yn-b.yes.on{background:var(--good);color:#fff}.yn-b.no.on{background:var(--bad);color:#fff}
+.yn{display:inline-flex;flex:none;gap:4px;padding:3px;border-radius:999px;background:var(--bg);border:1px solid var(--line);box-shadow:inset 0 1px 2px rgba(0,0,0,.06)}
+.yn-b{display:grid;place-items:center;width:42px;height:32px;padding:0;border:1px solid transparent;border-radius:999px;line-height:0;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s,opacity .15s,transform .1s}
+.yn-b svg{width:19px;height:19px;stroke-width:2.8}
+.yn-b.yes{background:color-mix(in srgb,var(--good) 14%,var(--surface));border-color:color-mix(in srgb,var(--good) 30%,transparent);color:var(--good)}
+.yn-b.no{background:color-mix(in srgb,var(--bad) 12%,var(--surface));border-color:color-mix(in srgb,var(--bad) 28%,transparent);color:var(--bad)}
+.yn-b.yes:hover{background:color-mix(in srgb,var(--good) 26%,var(--surface))}.yn-b.no:hover{background:color-mix(in srgb,var(--bad) 22%,var(--surface))}
+.yn-b:active{transform:scale(.93)}
+.yn-b:focus-visible{outline:2px solid var(--core);outline-offset:2px}
+.yn-b.yes.on{background:linear-gradient(180deg,#34B56E,#1E8E4E);border-color:#1E8E4E;color:#fff;box-shadow:0 2px 8px rgba(30,142,78,.35)}
+.yn-b.no.on{background:linear-gradient(180deg,#EC5E55,#C9302A);border-color:#C9302A;color:#fff;box-shadow:0 2px 8px rgba(208,52,44,.35)}
+.yn:has(.on) .yn-b:not(.on){opacity:.5}.yn:has(.on) .yn-b:not(.on):hover{opacity:1}
+@media (max-width:480px){.yn-b{width:38px;height:30px}.yn-b svg{width:17px;height:17px}
+  .todo.ynr{flex-wrap:wrap;row-gap:6px}.todo.ynr .tx{flex:1 1 calc(100% - 40px)}.todo.ynr .yn{margin-left:auto}}   /* phones: name on its own line, the switch under it on the right */
 .no-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:calc(11.5px*var(--tz,1));font-weight:700;color:var(--muted);white-space:nowrap;vertical-align:middle;text-decoration:none}
 .cnt{display:inline-flex;align-items:center;gap:2px;margin-left:6px;vertical-align:middle;white-space:nowrap;text-decoration:none}
 .cnt-b{width:26px;height:26px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:50%;font:inherit;font-size:calc(15px*var(--tz,1));font-weight:700;line-height:1;padding:0;cursor:pointer}
@@ -3246,7 +3253,7 @@ function renderTodos(){
     var yn=ty!=='yn'||sel?'':   // Yes / No: one joined switch on the right, tick | cross; the answer fills its side, tap it again to undo
       '<span class="yn" role="group" aria-label="Yes or No"><button type="button" class="yn-b yes'+(isYes(t)?' on':'')+'" data-yn="'+t.id+'" data-v="1" aria-pressed="'+isYes(t)+'" title="'+(isYes(t)?'Answered Yes. Tap to move back to To do':'Yes, done'+(up?' (early)':''))+'">'+ICON.check+'</button>'+
       '<button type="button" class="yn-b no'+(isNo(t)?' on':'')+'" data-yn="'+t.id+'" data-v="0" aria-pressed="'+isNo(t)+'" title="'+(isNo(t)?'Answered No. Tap to move back to To do':'No, not done. It leaves To do and is kept as Not done.')+'">'+ICON.cross+'</button></span>';
-    return '<li class="todo'+(t.done?' done':'')+(t.no?' no':'')+(up?' up':'')+(t.id===cur?' now':'')+(cc?' tinted':'')+(sel?' selm':'')+(pk?' picked':'')+'" data-id="'+t.id+'"'+(cc?' style="--cc:'+cc+'"':'')+'>'+
+    return '<li class="todo'+(yn?' ynr':'')+(t.done?' done':'')+(t.no?' no':'')+(up?' up':'')+(t.id===cur?' now':'')+(cc?' tinted':'')+(sel?' selm':'')+(pk?' picked':'')+'" data-id="'+t.id+'"'+(cc?' style="--cc:'+cc+'"':'')+'>'+
       (sel?'<input type="checkbox" class="sel-box" data-sel="'+t.id+'"'+(pk?' checked':'')+' aria-label="Select '+esc(t.text)+'">':
       (t.done||up?'':'<span class="grip" data-todo-grip title="Drag to reorder" aria-label="Drag to reorder">'+ICON.grip+'</span>')+mark)+
       '<span class="tx">'+(sel?'<span class="ht-tx">'+esc(t.text)+'</span>':'<button class="ht-tx" data-ht-edit="'+t.id+'" title="Edit this task">'+esc(t.text)+'</button>')+repTag(t)+(groups||!catKey(t)?'':' <span class="cat-tag">'+catDot(catById(t.cat))+esc(catById(t.cat).name)+'</span>')+
