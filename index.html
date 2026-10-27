@@ -2510,16 +2510,21 @@ function dfButton(id,d){
   return '<span class="df'+(on?' on':'')+'" data-df-wrap="'+id+'"><button type="button" class="inp df-btn" data-df="'+id+'" aria-haspopup="dialog" title="Pick dates">'+ICON.cal+'<span>'+esc(dfLabel(d))+'</span></button>'+
     (on?'<button type="button" class="df-x" data-df-x="'+id+'" title="Clear the dates" aria-label="Clear the dates">&times;</button>':'')+'</span>';
 }
-function fList(f,miss){   // miss: Blanks too (History only)
+/* Pending: a repeating task still to do whose day has passed (e.g. a Daily from yesterday during a shift that ran past midnight).
+   History lists it under Not done, dated its day, so it can be ticked for that day. */
+function isPend(t){return !!t&&!t.done&&!!t.rep&&!!t.due&&t.due<repBase(t.rep)&&!repWait(t);}
+function tWhen(t){return t.done||missWhen(t.due);}
+function fList(f,miss){   // miss: Blanks and Pending too (History only)
   var mins=todoMinutes(),q=f.q.trim().toLowerCase(),dt=dfTest(f.d),cat=f.cat!=='*'&&S.cats.length&&(f.cat===''||catById(f.cat))?f.cat:null;
   var list=S.todos.filter(function(t){
-    if(!t.done||(t.miss&&!miss))return false;
-    if((f.st==='done'&&t.no)||(f.st==='not'&&!t.no))return false;
+    var pd=!!miss&&isPend(t);
+    if(!pd&&(!t.done||(t.miss&&!miss)))return false;
+    if((f.st==='done'&&(pd||t.no))||(f.st==='not'&&!(pd||t.no)))return false;
     if(q&&t.text.toLowerCase().indexOf(q)<0)return false;
     if(cat!=null&&catKey(t)!==cat)return false;
-    return !dt||dt(doneDay(t));
+    return !dt||dt(pd?t.due:doneDay(t));
   });
-  var by={new:function(a,b){return b.done-a.done;},old:function(a,b){return a.done-b.done;},az:function(a,b){return a.text.localeCompare(b.text,undefined,{sensitivity:'base'});},time:function(a,b){return (mins[b.id]||0)-(mins[a.id]||0)||b.done-a.done;}};
+  var by={new:function(a,b){return tWhen(b)-tWhen(a);},old:function(a,b){return tWhen(a)-tWhen(b);},az:function(a,b){return a.text.localeCompare(b.text,undefined,{sensitivity:'base'});},time:function(a,b){return (mins[b.id]||0)-(mins[a.id]||0)||tWhen(b)-tWhen(a);}};
   return list.sort(by[f.sort]||by.new);
 }
 function fBar(id,f){
@@ -2879,6 +2884,17 @@ function fixTodo(id,yes){
   toast((yes?'Done':'Not done')+' on '+fmtDate(doneDay(t),{weekday:'short',day:'numeric',month:'short'})+': '+t.text,function(){
     var x=todoById(id);if(!x)return;
     ['no','miss','fixed'].forEach(function(f){if(was[f]===undefined)delete x[f];else x[f]=was[f];});afterChange();});
+}
+/* History: tick a Pending task for its own day (or answer No). The next one follows that day, so today's is not skipped */
+function fixPend(id,yes){
+  var t=todoById(id);if(!isPend(t))return;
+  var d=t.due,n=doneTodo(t);
+  t.day=d;t.done=missWhen(d);t.fixed=Date.now();if(!yes)t.no=true;
+  if(n){n.due=repNext(t.rep,d);delete n.after;}
+  afterChange();
+  toast((yes?'Done':'Not done')+' on '+fmtDate(d,{weekday:'short',day:'numeric',month:'short'})+': '+t.text,function(){
+    var x=todoById(id),nx=x&&x.next&&todoById(x.next);if(!x||!x.done||(nx&&nx.done))return;
+    reopenTodo(x);delete x.fixed;afterChange();});
 }
 /* tasks done in the shift of day k (no=true: the Yes / No tasks answered No instead) */
 function todosDoneOn(k,no){return S.todos.filter(function(t){return t.done&&!t.no===!no&&doneDay(t)===k;}).sort(function(a,b){return a.done-b.done;});}
@@ -3306,7 +3322,7 @@ function renderTodos(){
         noTag(t)+(ty==='count'?cntHtml(t,!t.done&&!sel):'')+'</span>'+
       yn+(m>=0.5?'<span class="tm">'+fmtM(m)+'</span>':'')+
       (up?'<span class="tm">'+esc(upLabel(t))+'</span>':
-       t.done?'<span class="tm" title="Completed '+esc(doneWhen(t.done,true))+'">'+esc(t.mrep?fmtDate(doneDay(t),{weekday:'short',day:'numeric',month:'short'})+', marked later':doneWhen(t.done))+(doneDay(t)!==dayKey(t.done)?' &middot; shift of '+esc(fmtDate(doneDay(t),{day:'numeric',month:'short'})):'')+'</span>':sel?'':
+       t.done?'<span class="tm" title="Completed '+esc(doneWhen(t.done,true))+'">'+esc(t.mrep||t.fixed?fmtDate(doneDay(t),{weekday:'short',day:'numeric',month:'short'})+', marked later':doneWhen(t.done))+(doneDay(t)!==dayKey(t.done)?' &middot; shift of '+esc(fmtDate(doneDay(t),{day:'numeric',month:'short'})):'')+'</span>':sel?'':
         (t.id===cur?'<span class="tag live-tag-sm">focusing</span><button class="btn sm" data-todo-unfocus title="Stop working on this task. Focus keeps running.">Unfocus</button>':'<button class="btn sm" data-todo-focus="'+t.id+'" title="Start Focus on this task">'+ICON.play+'Focus</button>'))+
       (sel?'':'<button class="x" data-todo-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button>')+'</li>';
   };
@@ -3644,13 +3660,14 @@ function renderHistory(){
 /* History > Tasks: every completed task with its date, searchable, filterable and sortable; rename, restore or remove */
 function histTasks(){
   var f=htState();
-  var n=S.todos.filter(function(t){return t.done;}).length;
+  var n=S.todos.filter(function(t){return t.done||isPend(t);}).length;
   if(!n){$('#histBody').innerHTML='<div class="card"><div class="empty">No tasks here yet. Tick a task on Home and it shows up here. A repeating task left unticked shows up as Blank.</div></div>';return;}
-  $('#histBody').innerHTML='<div class="card"><div class="card-head"><h2 data-tip="Done, answered No, or left blank (a repeating task not ticked that day). Pick Not done to put a day right.">Tasks</h2><span class="sub" id="htCount"></span></div>'+
+  $('#histBody').innerHTML='<div class="card"><div class="card-head"><h2 data-tip="Done, answered No, left blank (a repeating task not ticked that day) or still pending from an earlier day. Pick Not done to put a day right.">Tasks</h2><span class="sub" id="htCount"></span></div>'+
     fBar('ht',f)+'<div id="htRows"></div></div>';
   fWire('ht');
   $('#histBody').onclick=function(e){
-    var b=e.target.closest('[data-ht-fix]');if(b){fixTodo(b.getAttribute('data-ht-fix'),b.getAttribute('data-v')==='1');return;}
+    var b=e.target.closest('[data-ht-pend]');if(b){fixPend(b.getAttribute('data-ht-pend'),b.getAttribute('data-v')==='1');return;}
+    b=e.target.closest('[data-ht-fix]');if(b){fixTodo(b.getAttribute('data-ht-fix'),b.getAttribute('data-v')==='1');return;}
     b=e.target.closest('[data-ht-unfix]');if(b){var u=todoById(b.getAttribute('data-ht-unfix'));if(u&&u.mrep&&u.done){u.no=true;u.miss=true;delete u.fixed;afterChange();toast('Back to Blank: '+u.text);}return;}
     b=e.target.closest('[data-ht-back]');if(b){var t=todoById(b.getAttribute('data-ht-back'));if(t){reopenTodo(t);afterChange();toast('Moved back to To do: '+t.text);}return;}
     b=e.target.closest('[data-ht-del]');if(b){delTodo(b.getAttribute('data-ht-del'));}
@@ -3660,15 +3677,16 @@ function histTasks(){
 function htRows(){
   var box=$('#htRows');if(!box)return;
   var f=htState(),mins=todoMinutes(),list=fList(f,true);
-  $('#htCount').textContent=list.length+' of '+S.todos.filter(function(t){return t.done;}).length;
-  if(!list.length){box.innerHTML='<div class="empty">'+(f.st==='not'?'Nothing answered No or left blank.':'No tasks match.')+'</div>';return;}
+  $('#htCount').textContent=list.length+' of '+S.todos.filter(function(t){return t.done||isPend(t);}).length;
+  if(!list.length){box.innerHTML='<div class="empty">'+(f.st==='not'?'Nothing pending, answered No or left blank.':'No tasks match.')+'</div>';return;}
   box.innerHTML='<div class="tbl-wrap"><table class="tbl"><tr><th>Day</th><th>Task</th><th class="r">Focus</th><th></th></tr>'+
     list.map(function(t){var m=mins[t.id];
+      if(!t.done)return htPendRow(t,m);
       var sd=doneDay(t),c=catById(t.cat),dl=fmtDate(sd,{weekday:'short',day:'numeric',month:'short'});   // ticked after midnight in a late shift: it counts for that shift's day
       var fix=!t.no?'':tKind(t)==='yn'?
           '<button class="btn sm" data-ht-fix="'+t.id+'" data-v="1" title="Answer Yes for '+esc(dl)+'">'+ICON.check+'Yes</button> '+(t.miss?'<button class="btn sm" data-ht-fix="'+t.id+'" data-v="0" title="Answer No for '+esc(dl)+'">'+ICON.cross+'No</button> ':''):
           '<button class="btn sm" data-ht-fix="'+t.id+'" data-v="1" title="Mark done for '+esc(dl)+'">'+ICON.check+'Done</button> ';
-      return '<tr'+(t.miss?' class="ht-miss"':'')+'><td class="num" style="white-space:nowrap">'+(t.mrep?esc(fmtDate(sd,{weekday:'short',day:'numeric',month:'short',year:'numeric'}))+(t.miss?'<div class="small muted">Not ticked</div>':''):
+      return '<tr'+(t.miss?' class="ht-miss"':'')+'><td class="num" style="white-space:nowrap">'+(t.mrep||t.fixed?esc(fmtDate(sd,{weekday:'short',day:'numeric',month:'short',year:'numeric'}))+(t.miss?'<div class="small muted">Not ticked</div>':''):
           esc(fmtDate(dayKey(t.done),{weekday:'short',day:'numeric',month:'short',year:'numeric'}))+', '+fmtClock(t.done)+
           (sd!==dayKey(t.done)?'<div class="small muted" title="Ticked after midnight in the shift that began on '+esc(fmtDate(sd))+'">Shift of '+esc(fmtDate(sd,{day:'numeric',month:'short'}))+'</div>':''))+
           (t.fixed?'<div class="small muted" title="Put right on '+esc(doneWhen(t.fixed,true))+'">Fixed '+esc(fmtDate(dayKey(t.fixed),{day:'numeric',month:'short'}))+'</div>':'')+'</td>'+
@@ -3676,6 +3694,15 @@ function htRows(){
         '<td class="r num">'+(m>=0.5?fmtM(m):'--')+'</td>'+
         '<td class="acts">'+fix+(t.miss?'':t.mrep?'<button class="btn sm" data-ht-unfix="'+t.id+'" title="Put it back as Blank">Undo</button> ':'<button class="btn sm" data-ht-back="'+t.id+'" title="Move back to To do">Restore</button> ')+'<button class="x" data-ht-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button></td></tr>';
     }).join('')+'</table></div>';
+}
+function htPendRow(t,m){   // a repeating task from an earlier day, still to do
+  var c=catById(t.cat),dl=fmtDate(t.due,{weekday:'short',day:'numeric',month:'short'});
+  var acts=tKind(t)==='yn'?
+      '<button class="btn sm" data-ht-pend="'+t.id+'" data-v="1" title="Answer Yes for '+esc(dl)+'">'+ICON.check+'Yes</button> <button class="btn sm" data-ht-pend="'+t.id+'" data-v="0" title="Answer No for '+esc(dl)+'">'+ICON.cross+'No</button>':
+      '<button class="btn sm" data-ht-pend="'+t.id+'" data-v="1" title="Mark done for '+esc(dl)+'">'+ICON.check+'Done</button>';
+  return '<tr class="ht-pend"><td class="num" style="white-space:nowrap">'+esc(fmtDate(t.due,{weekday:'short',day:'numeric',month:'short',year:'numeric'}))+'<div class="small muted">Not ticked yet</div></td>'+
+    '<td><button class="ht-tx" data-ht-edit="'+t.id+'" title="Edit this task">'+esc(t.text)+'</button>'+repTag(t)+(c?' <span class="cat-tag">'+catDot(c)+esc(c.name)+'</span>':'')+' <span class="no-tag">Pending</span>'+(tKind(t)==='count'?cntHtml(t):'')+'</td>'+
+    '<td class="r num">'+(m>=0.5?fmtM(m):'--')+'</td><td class="acts">'+acts+'</td></tr>';
 }
 function htEdit(id){
   var t=todoById(id);if(!t)return;
