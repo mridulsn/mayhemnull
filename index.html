@@ -2851,7 +2851,7 @@ function rollMissed(){
     if(t.done||!t.rep||!t.due||repWait(t))continue;
     var nx=repNext(t.rep,t.due),sh=t.rep.k==='daily';
     if(nx>repBase(t.rep))continue;   // its next date has not come yet: still today's (or carried, for weekly / monthly)
-    if(sh&&(t.due===le||t.due===S.activeDay))continue;   // Every shift: that shift can still be resumed
+    if(t.due===S.activeDay||(sh&&t.due===le))continue;   // the running shift owns its day (ticks count for it); Every shift: one that can still be resumed
     var ran=!sh||!!(S.days[t.due]&&S.days[t.due].start);   // Every shift: a day with no shift is not missed
     changed=true;
     if(!ran||(sh&&t.after)||t.due<MISS_FROM||t.due<dayKey(t.created)){t.due=nx;delete t.after;i--;continue;}   // nothing to keep: move on a date
