@@ -2331,7 +2331,7 @@ function cntStep(id,d){
   var t=todoById(id);if(!t||t.done)return;
   t.n=Math.max(0,(t.n||0)+d);afterChange();
 }
-function noTag(t){return isNo(t)?' <span class="no-tag">Not done</span>':'';}
+function noTag(t){return isNo(t)?' <span class="no-tag">'+(t.miss?'Blank':'Not done')+'</span>':'';}
 function typeOpts(cur){return TYK.map(function(x){return '<option value="'+x+'"'+(x===cur?' selected':'')+'>'+TYL[x]+'</option>';}).join('');}
 function doneWhen(ts,full){return fmtDate(dayKey(ts),full?{weekday:'long',day:'numeric',month:'long',year:'numeric'}:{weekday:'short',day:'numeric',month:'short'})+', '+fmtClock(ts);}
 function shortDay(k){return k===shiftKey(todayKey(),1)?'Tomorrow':fmtDate(k,{weekday:'short',day:'numeric',month:'short'});}
@@ -2476,7 +2476,7 @@ function fState(o){
   o=o&&typeof o==='object'?o:{};
   if(!o.d||typeof o.d!=='object')o.d={mode:'range',p:({today:'today','7':'7','30':'30'})[o.p]||'all',a:null,b:null,days:[]};   // the old History picker becomes a preset
   delete o.p;
-  if(typeof o.q!=='string')o.q='';if(!o.sort)o.sort='new';if(o.cat==null)o.cat='*';
+  if(typeof o.q!=='string')o.q='';if(!o.sort)o.sort='new';if(o.cat==null)o.cat='*';if(!o.st)o.st='*';
   if(o.d.mode!=='days')o.d.mode='range';if(!Array.isArray(o.d.days))o.d.days=[];
   return o;
 }
@@ -2510,10 +2510,11 @@ function dfButton(id,d){
   return '<span class="df'+(on?' on':'')+'" data-df-wrap="'+id+'"><button type="button" class="inp df-btn" data-df="'+id+'" aria-haspopup="dialog" title="Pick dates">'+ICON.cal+'<span>'+esc(dfLabel(d))+'</span></button>'+
     (on?'<button type="button" class="df-x" data-df-x="'+id+'" title="Clear the dates" aria-label="Clear the dates">&times;</button>':'')+'</span>';
 }
-function fList(f){
+function fList(f,miss){   // miss: Blanks too (History only)
   var mins=todoMinutes(),q=f.q.trim().toLowerCase(),dt=dfTest(f.d),cat=f.cat!=='*'&&S.cats.length&&(f.cat===''||catById(f.cat))?f.cat:null;
   var list=S.todos.filter(function(t){
-    if(!t.done)return false;
+    if(!t.done||(t.miss&&!miss))return false;
+    if((f.st==='done'&&t.no)||(f.st==='not'&&!t.no))return false;
     if(q&&t.text.toLowerCase().indexOf(q)<0)return false;
     if(cat!=null&&catKey(t)!==cat)return false;
     return !dt||dt(doneDay(t));
@@ -2525,6 +2526,7 @@ function fBar(id,f){
   var opt=function(v,l,cur){return '<option value="'+v+'"'+(v===cur?' selected':'')+'>'+l+'</option>';};
   return '<div class="ht-bar f-bar"><input class="inp q" id="'+id+'Q" placeholder="Search tasks" value="'+esc(f.q)+'" autocomplete="off" aria-label="Search tasks">'+dfButton(id,f.d)+
     (S.cats.length?'<select class="inp" id="'+id+'C" title="Category" aria-label="Category">'+opt('*','All categories',f.cat)+S.cats.map(function(c){return opt(c.id,esc(c.name),f.cat);}).join('')+opt('','No category',f.cat)+'</select>':'')+
+    (id==='ht'?'<select class="inp" id="'+id+'T" title="Done, or Not done (answered No or left blank)" aria-label="Status">'+opt('*','All',f.st)+opt('done','Done',f.st)+opt('not','Not done',f.st)+'</select>':'')+
     '<select class="inp" id="'+id+'S" title="Sort" aria-label="Sort">'+opt('new','Newest first',f.sort)+opt('old','Oldest first',f.sort)+opt('az','A to Z',f.sort)+opt('time','Most focus time',f.sort)+'</select></div>';
 }
 var DFS={
@@ -2532,10 +2534,11 @@ var DFS={
   ht:{get:htState,apply:function(){htRows();var w=$('[data-df-wrap="ht"]');if(w)w.outerHTML=dfButton('ht',htState().d);}}
 };
 function fWire(id){   // search, category and sort of one filter bar
-  var f=DFS[id].get(),q=$('#'+id+'Q'),c=$('#'+id+'C'),so=$('#'+id+'S');
+  var f=DFS[id].get(),q=$('#'+id+'Q'),c=$('#'+id+'C'),so=$('#'+id+'S'),st=$('#'+id+'T');
   if(q)q.oninput=function(){f.q=q.value;saveUI();DFS[id].apply();};
   if(c)c.onchange=function(){f.cat=c.value;saveUI();DFS[id].apply();};
   if(so)so.onchange=function(){f.sort=so.value;saveUI();DFS[id].apply();};
+  if(st)st.onchange=function(){f.st=st.value;saveUI();DFS[id].apply();};
 }
 /* the Date picker: presets, Range | Days, one month calendar */
 var DFP=null;
@@ -2834,6 +2837,49 @@ function repairRepeats(s){
     if(want<n.due){n.due=want;if(n.rep.k==='daily'&&t.done>=cut)n.after=cut;}
   });
 }
+/* a repeating task left unticked: once its next date has come, that day is kept as a Blank record (done + no + miss,
+   dated that day) and a fresh one takes its place in To do, so a late tick never eats today's. History > Tasks > Not done
+   lists the Blanks to mark done later. Ids and times come from the task and the date only, so every device makes the
+   same records and opening the app never needs a sync. */
+var MISS_FROM='2026-10-21';   // tasks that already existed are filled in from here, not from the day they were made
+function missWhen(k){return keyDate(k).getTime()+86399000;}   // 23:59:59 of that day: it counts for that day
+function rollMissed(){
+  if(!S||!Array.isArray(S.todos))return false;
+  var changed=false,le=lastEnded(),o=curSeg();
+  for(var i=0;i<S.todos.length;i++){
+    var t=S.todos[i];
+    if(t.done||!t.rep||!t.due||repWait(t))continue;
+    var nx=repNext(t.rep,t.due),sh=t.rep.k==='daily';
+    if(nx>repBase(t.rep))continue;   // its next date has not come yet: still today's (or carried, for weekly / monthly)
+    if(sh&&(t.due===le||t.due===S.activeDay))continue;   // Every shift: that shift can still be resumed
+    var ran=!sh||!!(S.days[t.due]&&S.days[t.due].start);   // Every shift: a day with no shift is not missed
+    changed=true;
+    if(!ran||(sh&&t.after)||t.due<MISS_FROM||t.due<dayKey(t.created)){t.due=nx;delete t.after;i--;continue;}   // nothing to keep: move on a date
+    var root=t.root||t.id,n={id:root+'~'+nx,root:root,text:t.text,created:missWhen(t.due)+1000,done:null,rep:JSON.parse(JSON.stringify(t.rep)),due:nx};
+    if(t.cat)n.cat=t.cat;
+    if(t.kind)setKind(n,t.kind,t.goal||0,t.unit||'');   // a Count starts again at 0; the Blank keeps what was counted
+    if(o&&o.task===t.id)o.task=n.id;
+    t.done=missWhen(t.due);t.day=t.due;t.no=true;t.miss=true;t.mrep=t.rep;
+    delete t.rep;delete t.due;delete t.after;delete t.next;
+    if(!todoById(n.id)){S.todos.splice(i,0,n);i--;}
+  }
+  return changed;
+}
+function rollQuiet(){   // saved on this device only; it goes to the account with the next real change
+  if(loadError||!rollMissed())return false;
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  return true;
+}
+/* History: put right a task from an earlier day. A Blank or a No becomes done (or a Blank becomes No); it stays on its own day */
+function fixTodo(id,yes){
+  var t=todoById(id);if(!t||!t.done||!t.no)return;
+  var was={no:t.no,miss:t.miss,fixed:t.fixed};
+  delete t.miss;if(yes)delete t.no;
+  t.fixed=Date.now();afterChange();
+  toast((yes?'Done':'Not done')+' on '+fmtDate(doneDay(t),{weekday:'short',day:'numeric',month:'short'})+': '+t.text,function(){
+    var x=todoById(id);if(!x)return;
+    ['no','miss','fixed'].forEach(function(f){if(was[f]===undefined)delete x[f];else x[f]=was[f];});afterChange();});
+}
 /* tasks done in the shift of day k (no=true: the Yes / No tasks answered No instead) */
 function todosDoneOn(k,no){return S.todos.filter(function(t){return t.done&&!t.no===!no&&doneDay(t)===k;}).sort(function(a,b){return a.done-b.done;});}
 
@@ -3018,7 +3064,7 @@ function renderView(){
   else if(v==='guide')renderGuide();
   else if(v==='settings')renderSettings();
 }
-function renderAll(){applyLook();renderTop();renderView();}
+function renderAll(){rollQuiet();applyLook();renderTop();renderView();}
 
 /* ================= top bar ================= */
 function renderTop(){
@@ -3242,9 +3288,9 @@ function renderTodos(){
   var k=todayKey(),mins=todoMinutes(),o=curSeg(),cur=o&&o.state==='core'?o.task:null;
   var open=S.todos.filter(dueNow);
   var later=S.todos.filter(function(t){return !t.done&&!dueNow(t);}).sort(function(a,b){return a.due<b.due?-1:a.due>b.due?1:0;});
-  var cut=shiftCut(),doneNow=S.todos.filter(function(t){return t.done&&t.done>=cut;}).sort(function(a,b){return b.done-a.done;});
-  var allDone=S.todos.filter(function(t){return t.done;}).length;
-  var keep=!!S.settings.keepDone,doneList=keep?S.todos.filter(function(t){return t.done;}).sort(function(a,b){return b.done-a.done;}):doneNow;
+  var cut=shiftCut(),doneNow=S.todos.filter(function(t){return t.done&&!t.miss&&t.done>=cut;}).sort(function(a,b){return b.done-a.done;});
+  var allDone=S.todos.filter(function(t){return t.done&&!t.miss;}).length;
+  var keep=!!S.settings.keepDone,doneList=keep?S.todos.filter(function(t){return t.done&&!t.miss;}).sort(function(a,b){return b.done-a.done;}):doneNow;
   var groups=S.cats.length>0,sel=SEL.on&&S.todos.length>0;
   if(SEL.on&&!sel)SEL={on:false,ids:{}};
   var row=function(t){
@@ -3260,7 +3306,7 @@ function renderTodos(){
         noTag(t)+(ty==='count'?cntHtml(t,!t.done&&!sel):'')+'</span>'+
       yn+(m>=0.5?'<span class="tm">'+fmtM(m)+'</span>':'')+
       (up?'<span class="tm">'+esc(upLabel(t))+'</span>':
-       t.done?'<span class="tm" title="Completed '+esc(doneWhen(t.done,true))+'">'+esc(doneWhen(t.done))+(doneDay(t)!==dayKey(t.done)?' &middot; shift of '+esc(fmtDate(doneDay(t),{day:'numeric',month:'short'})):'')+'</span>':sel?'':
+       t.done?'<span class="tm" title="Completed '+esc(doneWhen(t.done,true))+'">'+esc(t.mrep?fmtDate(doneDay(t),{weekday:'short',day:'numeric',month:'short'})+', marked later':doneWhen(t.done))+(doneDay(t)!==dayKey(t.done)?' &middot; shift of '+esc(fmtDate(doneDay(t),{day:'numeric',month:'short'})):'')+'</span>':sel?'':
         (t.id===cur?'<span class="tag live-tag-sm">focusing</span><button class="btn sm" data-todo-unfocus title="Stop working on this task. Focus keeps running.">Unfocus</button>':'<button class="btn sm" data-todo-focus="'+t.id+'" title="Start Focus on this task">'+ICON.play+'Focus</button>'))+
       (sel?'':'<button class="x" data-todo-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button>')+'</li>';
   };
@@ -3331,7 +3377,7 @@ function dayStatsHtml(day,k,now){
 }
 /* task progress for the running shift: done vs left, one block per task, in its category colour */
 function progressHtml(){
-  var cut=shiftCut(),ans=S.todos.filter(function(t){return t.done&&t.done>=cut;}).sort(function(a,b){return a.done-b.done;});
+  var cut=shiftCut(),ans=S.todos.filter(function(t){return t.done&&!t.miss&&t.done>=cut;}).sort(function(a,b){return a.done-b.done;});
   var done=ans.filter(isYes),nos=ans.filter(isNo);   // a No is answered (not left) but not done
   var open=S.todos.filter(dueNow),n=ans.length+open.length;
   if(!n)return '';
@@ -3404,7 +3450,7 @@ function summaryText(k){
   var done=todosDoneOn(k);
   var amt=function(x){return tKind(x)==='count'?' ('+cntVal(x)+')':'';},nos=todosDoneOn(k,true);
   if(done.length){lines.push('Tasks done ('+done.length+'):');done.forEach(function(x){lines.push('  [x] '+fmtClock(x.done)+'  '+x.text+amt(x));});}
-  if(nos.length){lines.push('Not done ('+nos.length+'):');nos.forEach(function(x){lines.push('  [ ] '+fmtClock(x.done)+'  '+x.text);});}
+  if(nos.length){lines.push('Not done ('+nos.length+'):');nos.forEach(function(x){lines.push('  [ ] '+(x.miss?'blank':fmtClock(x.done))+'  '+x.text);});}
   return lines.join('\n');
 }
 function showSummary(k,saving){
@@ -3599,29 +3645,36 @@ function renderHistory(){
 function histTasks(){
   var f=htState();
   var n=S.todos.filter(function(t){return t.done;}).length;
-  if(!n){$('#histBody').innerHTML='<div class="card"><div class="empty">No completed tasks yet. Tick a task on Home and it shows up here.</div></div>';return;}
-  $('#histBody').innerHTML='<div class="card"><div class="card-head"><h2>Completed tasks</h2><span class="sub" id="htCount"></span></div>'+
+  if(!n){$('#histBody').innerHTML='<div class="card"><div class="empty">No tasks here yet. Tick a task on Home and it shows up here. A repeating task left unticked shows up as Blank.</div></div>';return;}
+  $('#histBody').innerHTML='<div class="card"><div class="card-head"><h2 data-tip="Done, answered No, or left blank (a repeating task not ticked that day). Pick Not done to put a day right.">Tasks</h2><span class="sub" id="htCount"></span></div>'+
     fBar('ht',f)+'<div id="htRows"></div></div>';
   fWire('ht');
   $('#histBody').onclick=function(e){
-    var b=e.target.closest('[data-ht-back]');if(b){var t=todoById(b.getAttribute('data-ht-back'));if(t){reopenTodo(t);afterChange();toast('Moved back to To do: '+t.text);}return;}
+    var b=e.target.closest('[data-ht-fix]');if(b){fixTodo(b.getAttribute('data-ht-fix'),b.getAttribute('data-v')==='1');return;}
+    b=e.target.closest('[data-ht-unfix]');if(b){var u=todoById(b.getAttribute('data-ht-unfix'));if(u&&u.mrep&&u.done){u.no=true;u.miss=true;delete u.fixed;afterChange();toast('Back to Blank: '+u.text);}return;}
+    b=e.target.closest('[data-ht-back]');if(b){var t=todoById(b.getAttribute('data-ht-back'));if(t){reopenTodo(t);afterChange();toast('Moved back to To do: '+t.text);}return;}
     b=e.target.closest('[data-ht-del]');if(b){delTodo(b.getAttribute('data-ht-del'));}
   };
   htRows();
 }
 function htRows(){
   var box=$('#htRows');if(!box)return;
-  var mins=todoMinutes(),list=fList(htState());
+  var f=htState(),mins=todoMinutes(),list=fList(f,true);
   $('#htCount').textContent=list.length+' of '+S.todos.filter(function(t){return t.done;}).length;
-  if(!list.length){box.innerHTML='<div class="empty">No completed tasks match.</div>';return;}
-  box.innerHTML='<div class="tbl-wrap"><table class="tbl"><tr><th>Completed</th><th>Task</th><th class="r">Focus</th><th></th></tr>'+
+  if(!list.length){box.innerHTML='<div class="empty">'+(f.st==='not'?'Nothing answered No or left blank.':'No tasks match.')+'</div>';return;}
+  box.innerHTML='<div class="tbl-wrap"><table class="tbl"><tr><th>Day</th><th>Task</th><th class="r">Focus</th><th></th></tr>'+
     list.map(function(t){var m=mins[t.id];
-      var sd=doneDay(t),c=catById(t.cat);   // ticked after midnight in a late shift: it counts for that shift's day
-      return '<tr><td class="num" style="white-space:nowrap">'+esc(fmtDate(dayKey(t.done),{weekday:'short',day:'numeric',month:'short',year:'numeric'}))+', '+fmtClock(t.done)+
-          (sd!==dayKey(t.done)?'<div class="small muted" title="Ticked after midnight in the shift that began on '+esc(fmtDate(sd))+'">Shift of '+esc(fmtDate(sd,{day:'numeric',month:'short'}))+'</div>':'')+'</td>'+
-        '<td><button class="ht-tx" data-ht-edit="'+t.id+'" title="Rename this task">'+esc(t.text)+'</button>'+repTag(t)+(c?' <span class="cat-tag">'+catDot(c)+esc(c.name)+'</span>':'')+noTag(t)+(tKind(t)==='count'?cntHtml(t):'')+'</td>'+
+      var sd=doneDay(t),c=catById(t.cat),dl=fmtDate(sd,{weekday:'short',day:'numeric',month:'short'});   // ticked after midnight in a late shift: it counts for that shift's day
+      var fix=!t.no?'':tKind(t)==='yn'?
+          '<button class="btn sm" data-ht-fix="'+t.id+'" data-v="1" title="Answer Yes for '+esc(dl)+'">'+ICON.check+'Yes</button> '+(t.miss?'<button class="btn sm" data-ht-fix="'+t.id+'" data-v="0" title="Answer No for '+esc(dl)+'">'+ICON.cross+'No</button> ':''):
+          '<button class="btn sm" data-ht-fix="'+t.id+'" data-v="1" title="Mark done for '+esc(dl)+'">'+ICON.check+'Done</button> ';
+      return '<tr'+(t.miss?' class="ht-miss"':'')+'><td class="num" style="white-space:nowrap">'+(t.mrep?esc(fmtDate(sd,{weekday:'short',day:'numeric',month:'short',year:'numeric'}))+(t.miss?'<div class="small muted">Not ticked</div>':''):
+          esc(fmtDate(dayKey(t.done),{weekday:'short',day:'numeric',month:'short',year:'numeric'}))+', '+fmtClock(t.done)+
+          (sd!==dayKey(t.done)?'<div class="small muted" title="Ticked after midnight in the shift that began on '+esc(fmtDate(sd))+'">Shift of '+esc(fmtDate(sd,{day:'numeric',month:'short'}))+'</div>':''))+
+          (t.fixed?'<div class="small muted" title="Put right on '+esc(doneWhen(t.fixed,true))+'">Fixed '+esc(fmtDate(dayKey(t.fixed),{day:'numeric',month:'short'}))+'</div>':'')+'</td>'+
+        '<td><button class="ht-tx" data-ht-edit="'+t.id+'" title="Rename this task">'+esc(t.text)+'</button>'+repTag(t.mrep?{rep:t.mrep}:t)+(c?' <span class="cat-tag">'+catDot(c)+esc(c.name)+'</span>':'')+noTag(t)+(tKind(t)==='count'?cntHtml(t):'')+'</td>'+
         '<td class="r num">'+(m>=0.5?fmtM(m):'--')+'</td>'+
-        '<td class="acts"><button class="btn sm" data-ht-back="'+t.id+'" title="Move back to To do">Restore</button> <button class="x" data-ht-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button></td></tr>';
+        '<td class="acts">'+fix+(t.miss?'':t.mrep?'<button class="btn sm" data-ht-unfix="'+t.id+'" title="Put it back as Blank">Undo</button> ':'<button class="btn sm" data-ht-back="'+t.id+'" title="Move back to To do">Restore</button> ')+'<button class="x" data-ht-del="'+t.id+'" title="Remove this task" aria-label="Remove">&times;</button></td></tr>';
     }).join('')+'</table></div>';
 }
 function htEdit(id){
@@ -4952,7 +5005,8 @@ var tick=0;
 var lastDayKey=null;
 function loop(){
   tick++;
-  var dk=todayKey();if(lastDayKey&&dk!==lastDayKey&&UI.view==='today')renderToday();lastDayKey=dk;
+  var dk=todayKey();if(lastDayKey&&dk!==lastDayKey){if(rollQuiet())renderAll();else if(UI.view==='today')renderToday();}lastDayKey=dk;
+  if(tick%60===0&&rollQuiet())renderAll();   // a shift that can no longer be resumed leaves its Blanks
   renderTop();
   pomoTick();
   if(UI.view==='today'){updateTiles();if(tick%5===0){renderKpis();renderNudge();}if(tick%30===0)renderTimeline();}
